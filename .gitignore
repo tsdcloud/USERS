@@ -1,0 +1,21 @@
+# Environnements virtuels
+venv/
+.env
+
+# Fichiers compilés Python
+*.pyc
+__pycache__/
+
+# Fichiers de base de données SQLite
+db.sqlite3
+
+# Fichiers de migration
+migrations/
+
+# Static et médias
+staticfiles/
+media/
+
+# Configuration de l'IDE
+.idea/
+.vscode/
