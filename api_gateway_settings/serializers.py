@@ -1,18 +1,18 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from api_users.models import AssignPermissionToUser, AssignRoleToUser, AssignPermissionToRole
 
-
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+
     """
     Serializer to customize the token response by including user information.
     """
 
-    def validate(self, attrs):
-        # Call the parent validate method to get the tokens
-        data = super().validate(attrs)
-
+    @classmethod
+    def get_token(cls, user):
+        # Get the default token
+        token = super().get_token(user)
+        
         # Add custom user information to the response
-        user = self.user
         assigned_permissions = AssignPermissionToUser.objects.filter(user_id=user).select_related('permission_id')
         assigned_roles = AssignRoleToUser.objects.filter(user_id=user).select_related('role_id')
 
@@ -38,7 +38,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
             permissions = [
                 {
-                    "id": perm.permission_id.id,
+                    "id": str(perm.permission_id.id),
                     "permission_name": perm.permission_id.permission_name,
                     "description": perm.permission_id.description
                 }
@@ -46,22 +46,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             ]
 
             roles.append({
-                "id": role.id,
+                "id": str(role.id),
                 "role_name": role.role_name,
                 "permissions": permissions
             })
 
-        data.update({
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "roles": roles,
-                "permissions": permissions,
-            }
-        })
+        # Add custom claims to the token payload
+        token['user'] = {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "roles": roles,
+            "permissions": permissions,
+        }
 
-        return data
-
+        return token

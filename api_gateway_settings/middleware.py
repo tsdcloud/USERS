@@ -5,6 +5,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework import status
 
 class AppendSlashMiddleware:
     def __init__(self, get_response):
@@ -46,7 +47,11 @@ class JWTUserMiddleware(MiddlewareMixin):
 
         # Ensure the token starts with "Bearer"
         if not auth_header.startswith('Bearer '):
-            raise AuthenticationFailed("Invalid token format. Expected 'Bearer <token>'.")
+            # return AuthenticationFailed("Invalid token format. Expected 'Bearer <token>'.")
+            return JsonResponse(
+                    {"error": "Invalid or expired token."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
         # Extract the token
         token = auth_header.split(' ')[1]
@@ -57,7 +62,11 @@ class JWTUserMiddleware(MiddlewareMixin):
             validated_token = jwt_authenticator.get_validated_token(token)
             user = jwt_authenticator.get_user(validated_token)
         except (InvalidToken, TokenError):
-            raise AuthenticationFailed("Invalid or expired token.")
+            # return AuthenticationFailed("Invalid or expired token.")
+            return JsonResponse(
+                    {"error": "Invalid or expired token."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
         # Add the user to the request
         request.user = user

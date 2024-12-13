@@ -92,6 +92,23 @@ class CustomUser(AbstractUser):
     reset_token = models.CharField(_("reset token"), max_length=255, blank=True, null=True)
     reset_token_expire = models.DateTimeField(_("reset token expire"), blank=True, null=True)
 
+    created_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="user_created_by",
+        help_text="User who created this user.",
+        null=True,
+        blank=True,
+    )
+    updated_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="user_updated_by",
+        null=True,
+        blank=True,
+        help_text="User who last updated this user.",
+    )
+
     
     # username = None
     # phone_number = models.CharField(max_length=15, blank=True, null=True)
@@ -259,13 +276,15 @@ class Role(models.Model):
     )
     created_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="role_created_by",
         help_text="User who created this role.",
+        null=True,
+        blank=True,
     )
     updated_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="role_updated_by",
         null=True,
         blank=True,
@@ -323,13 +342,15 @@ class Permission(models.Model):
     )
     created_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="permission_created_by",
-        help_text="The user who created this permission."
+        help_text="The user who created this permission.",
+        null=True,
+        blank=True,
     )
     updated_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="permission_updated_by",
         null=True,
         blank=True,
@@ -395,13 +416,15 @@ class Application(models.Model):
     )
     created_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="app_created_by",
-        help_text="The user who created this application (non-nullable)."
+        help_text="The user who created this application (non-nullable).",
+        null=True,
+        blank=True,
     )
     updated_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="app_updated_by",
         null=True,
         blank=True,
@@ -455,9 +478,10 @@ class AssignPermissionToUser(models.Model):
     )
     assigned_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="permissions_user_assigned_by",
-        help_text="The user who assigned the permission (must exist in the user table)."
+        help_text="The user who assigned the permission (must exist in the user table).",
+        null=True,
     )
     date_assigned = models.DateTimeField(
         auto_now_add=True,
@@ -505,9 +529,10 @@ class AssignRoleToUser(models.Model):
     )
     assigned_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="role_user_assigned_by",
-        help_text="The user or administrator who assigned the role (must exist in the user table)."
+        help_text="The user or administrator who assigned the role (must exist in the user table).",
+        null=True,
     )
     date_assigned = models.DateTimeField(
         auto_now_add=True,
@@ -557,9 +582,10 @@ class AssignPermissionToRole(models.Model):
     )
     assigned_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="role_permission_assigned_by",
-        help_text="The user or administrator who assigned the permission (must exist in the User table)."
+        help_text="The user or administrator who assigned the permission (must exist in the User table).",
+        null=True,
     )
     date_assigned = models.DateTimeField(
         auto_now_add=True,
@@ -607,9 +633,10 @@ class AssignPermissionApplication(models.Model):
     )
     assigned_by = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="permissions_app_assigned_by",
-        help_text="The user or administrator who assigned the permission (must exist in the user table)."
+        help_text="The user or administrator who assigned the permission (must exist in the user table).",
+        null=True,
     )
     date_assigned = models.DateTimeField(
         auto_now_add=True,

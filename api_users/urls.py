@@ -1,14 +1,22 @@
 from django.urls import path, include
-from .views import UserView, PermissionAPIView, RoleAPIView, ApplicationAPIView, AssignPermissionToUserAPIView, AssignRoleToUserAPIView, AssignPermissionToRoleAPIView, AssignPermissionToApplicationAPIView
-from rest_framework.routers import DefaultRouter
-
-
-# Configuration routeur configuration
-router = DefaultRouter()
-router.register(r'users', UserView, basename='user')
+from .views import (
+    UserView, 
+    PermissionAPIView, 
+    RoleAPIView,
+    ApplicationAPIView,
+    AssignPermissionToUserAPIView, 
+    AssignRoleToUserAPIView, 
+    AssignPermissionToRoleAPIView, 
+    AssignPermissionToApplicationAPIView,
+    SetPasswordAPIView,
+    SearchUserView
+)
 
 urlpatterns = [
-    path('', include(router.urls), name='crud_user'),
+    path('user/', UserView.as_view()),
+    path('user/<uuid:pk>/', UserView.as_view()),
+    path('user/search/', SearchUserView.as_view()),
+    path("set_password/", SetPasswordAPIView.as_view(), name="set_password"),
     path('permission/', PermissionAPIView.as_view()),
     path('permission/<uuid:pk>/', PermissionAPIView.as_view()),
     path('role/', RoleAPIView.as_view()),

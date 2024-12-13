@@ -1,11 +1,12 @@
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import CustomTokenObtainPairSerializer
+# from .serializers import CustomTokenObtainPairSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.utils.timezone import now
-from django.views import View
+from django.contrib.auth import authenticate
+from api_users.models import CustomUser
 
 class UserInfoView(APIView):
     """
@@ -23,24 +24,53 @@ class UserInfoView(APIView):
             "last_name": user.last_name
         })
 
-class CustomTokenObtainPairView(TokenObtainPairView): 
+class CustomTokenObtainPairView(TokenObtainPairView):
     """
-    Custom TokenObtainPairView to return tokens along with user information.
+    Custom TokenObtainPairView to support login with email or username and 
+    return tokens along with user information and handle login verification.
     """
-    serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        username_or_email = request.data.get('login')
+        password = request.data.get('password')
 
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            return Response({"error": "Invalid username or password"}, status=status.HTTP_401_UNAUTHORIZED)
-        
-        # If validation is successful, update last_login
-        user = serializer.user
+        # Determine if identifier is email or username
+        if '@' in username_or_email:
+            # Treat as email
+            try:
+                username = CustomUser.objects.get(email=username_or_email).username
+            except CustomUser.DoesNotExist:
+                return Response(
+                    {"success": False, "message": "Invalid email or username."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+        else:
+            # Treat as username
+            username = username_or_email
+
+        # Authenticate user
+        user = authenticate(username=username, password=password)
+
+        if not user:
+            return Response(
+                {"success": False, "message": "Invalid email/username or password."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Generate tokens
+        serializer = self.get_serializer(data={"username": username, "password": password})
+        serializer.is_valid(raise_exception=True)
+
+        # Update last login
         user.last_login = now()
         user.save(update_fields=["last_login"])
 
-        # Return the token along with the user info
-        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        # Return tokens and user info
+        return Response(
+            {
+                "success": True,
+                "message": "Authentication successful.",
+                "data": serializer.validated_data,
+            },
+            status=status.HTTP_200_OK,
+        )

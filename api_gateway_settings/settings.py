@@ -143,6 +143,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
     
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 100,
@@ -158,5 +162,24 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',  
     'SIGNING_KEY': SECRET_KEY, 
     'AUTH_HEADER_TYPES': ('Bearer',),
+    "TOKEN_OBTAIN_SERIALIZER": "api_gateway_settings.serializers.CustomTokenObtainPairSerializer",
 }
 
+# Configure SMTP 
+
+EMAIL_HOST = 'smtp.office365.com'
+EMAIL_HOST_USER = 'tsd@bfclimited.com'
+EMAIL_HOST_PASSWORD ='dpws@2023'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 300
+DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
+
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.office365.com'
+# EMAIL_PORT = 587 
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'sngnetchedjeu@bfclimited.com' 
+# # EMAIL_HOST_USER = 'ngnetchedjeusteevemarley@gmail.com' 
+# EMAIL_HOST_PASSWORD = 'Lamachette_&'
+# DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
