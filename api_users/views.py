@@ -66,7 +66,9 @@ class UserView(APIView):
         Handle PATCH requests for partially updating an instance.
         """
         instance = get_object_or_404(CustomUser, pk=pk)
+        
         serializer = UserSerializer(instance, data=request.data, partial=True)
+
         if serializer.is_valid():
             # Check if the user is anonymous
             if isinstance(request.user, AnonymousUser):
@@ -75,18 +77,40 @@ class UserView(APIView):
             serializer.save(updated_by=request.user)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+    def put(self, request, pk):
+        """
+        Handle PUT requests for fully updating an instance, excluding the password field.
+        """
+        instance = get_object_or_404(CustomUser, pk=pk)
+        serializer = UserSerializer(instance, data=request.data)
         
+        if serializer.is_valid():
+
+            if isinstance(request.user, AnonymousUser):
+                return Response({"error": "Anonymous users cannot perform updates."}, status=status.HTTP_403_FORBIDDEN)
+            
+            serializer.save(updated_by=request.user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
     def post(self, request):
         data = request.data
         first_name = data.get("first_name")
         username = data.get("username")
         last_name = data.get("last_name")
         email = data.get("email")
+        phone = data.get("phone")
 
         random_password = generate_random_chain(12)
         hashed_password = make_password(random_password)
 
         if not last_name : last_name = ""
+
+        if not phone : phone = ""
 
         if not first_name or not email:
             return Response({"error": "First name and email are required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -109,6 +133,7 @@ class UserView(APIView):
             username=username,
             last_name = last_name,
             is_active=False,
+            phone=phone,
             password=hashed_password,
             created_by=request.user,
         )
@@ -375,7 +400,7 @@ class RoleAPIView(APIView):
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
 
 class ApplicationAPIView(APIView):
     """
@@ -455,7 +480,7 @@ class ApplicationAPIView(APIView):
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
 
 # API View for AssignPermissionToUser
 class AssignPermissionToUserAPIView(APIView):

@@ -33,5 +33,5 @@ urlpatterns = [
     path('api_gateway/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
     path('api_gateway/token/revoke/', TokenBlacklistView.as_view(), name='token_blacklist'),
 
-    path('api_gateway/api_users/', include('api_users.urls')),
+    path('api_gateway/api/', include('api_users.urls')),
 ]

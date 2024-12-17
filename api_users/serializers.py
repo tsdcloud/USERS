@@ -12,7 +12,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone', 'is_staff', 'is_active', 'is_superuser', 'user_created_by', 'user_updated_by', 'password']
+        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone', 'is_staff', 'is_active', 'is_superuser', 'user_created_by', 'user_updated_by']
         extra_kwargs = {
             'password': {'write_only': True},
         }
@@ -36,6 +36,10 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name": obj.updated_by.last_name,
             "phone": obj.updated_by.phone
         } if obj.updated_by else None
+    
+    def update(self, instance, validated_data):
+        validated_data.pop('password', None)
+        return super().update(instance, validated_data)
 
 
 class PermissionSerializer(serializers.ModelSerializer):

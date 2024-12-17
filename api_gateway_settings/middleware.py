@@ -29,31 +29,30 @@ class AppendSlashMiddleware:
         # Continue with normal treatment if no modifications are required
         return self.get_response(request)
 
-
 class JWTUserMiddleware(MiddlewareMixin):
     """
-    Middleware to authenticate user using JWT from Authorization header.
-    Validates the token and adds the user to the request object.
+    Middleware to support both session-based and JWT authentication.
     """
 
     def process_request(self, request):
+        # Skip if user is already authenticated via session
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            return
+
         # Extract the Authorization header
         auth_header = request.headers.get('Authorization', None)
 
         if not auth_header:
-            # If no Authorization header is found, raise exception
             request.user = AnonymousUser()
             return
 
-        # Ensure the token starts with "Bearer"
         if not auth_header.startswith('Bearer '):
-            # return AuthenticationFailed("Invalid token format. Expected 'Bearer <token>'.")
             return JsonResponse(
-                    {"error": "Invalid or expired token."},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+                {"error": "Invalid token format. Expected 'Bearer <token>'."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
-        # Extract the token
+        # Extract the JWT token
         token = auth_header.split(' ')[1]
 
         # Validate and decode the token using SimpleJWT
@@ -62,11 +61,10 @@ class JWTUserMiddleware(MiddlewareMixin):
             validated_token = jwt_authenticator.get_validated_token(token)
             user = jwt_authenticator.get_user(validated_token)
         except (InvalidToken, TokenError):
-            # return AuthenticationFailed("Invalid or expired token.")
             return JsonResponse(
-                    {"error": "Invalid or expired token."},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+                {"error": "Invalid or expired token."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
-        # Add the user to the request
+        # Attach the authenticated user to the request
         request.user = user
