@@ -9,7 +9,9 @@ from .views import (
     AssignPermissionToRoleAPIView, 
     AssignPermissionToApplicationAPIView,
     SetPasswordAPIView,
-    SearchUserView
+    SearchUserView,
+    EmailToResetPasswordAPIView,
+    ResetPasswordAPIView
 )
 
 urlpatterns = [
@@ -31,4 +33,6 @@ urlpatterns = [
     path('assign_permission_role/<uuid:pk>/', AssignPermissionToRoleAPIView.as_view()),
     path('assign_permission_application/', AssignPermissionToApplicationAPIView.as_view()),
     path('assign_permission_application/<uuid:pk>/', AssignPermissionToApplicationAPIView.as_view()),
+    path("email_reset_password/", EmailToResetPasswordAPIView.as_view(), name="email_reset_password"),
+    path("reset_password/", ResetPasswordAPIView.as_view(), name="reset_password"),
 ]

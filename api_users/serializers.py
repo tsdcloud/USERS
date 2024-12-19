@@ -1,5 +1,16 @@
 from rest_framework import serializers
-from .models import CustomUser, Permission, Role, Application, AssignPermissionToUser, AssignRoleToUser, AssignPermissionToRole, AssignPermissionApplication
+from .models import (
+    CustomUser, 
+    Permission, 
+    Role, 
+    Application, 
+    AssignPermissionToUser, 
+    AssignRoleToUser, 
+    AssignPermissionToRole, 
+    AssignPermissionApplication 
+)
+
+import re
 
 
 class UserSerializer(serializers.ModelSerializer):

@@ -68,3 +68,4 @@ class JWTUserMiddleware(MiddlewareMixin):
 
         # Attach the authenticated user to the request
         request.user = user
+        # print(request.user)
