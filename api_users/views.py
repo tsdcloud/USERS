@@ -295,12 +295,12 @@ class ResetPasswordAPIView(APIView):
         data = request.data
         token = request.query_params.get('token')
         password = data.get("password")
-        verified_password = data.get("verified_password")
+        confirm_password = data.get("confirm_password")
 
         if not token:
             return Response({"error": "Token are required."}, status=status.HTTP_400_BAD_REQUEST)
         
-        if password != verified_password :
+        if password != confirm_password :
             return Response({"error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = CustomUser.objects.filter(reset_token=token).first()
