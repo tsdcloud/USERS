@@ -19,7 +19,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Serialize the permissions using a custom serializer
         permissions = [
             {
-                "id": perm.permission_id.id,
+                "id": str(perm.permission_id.id),
                 "permission_name": perm.permission_id.permission_name,
                 "description": perm.permission_id.description,
             }
