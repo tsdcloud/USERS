@@ -223,14 +223,19 @@ class SetPasswordAPIView(APIView):
         data = request.data
         token = request.query_params.get('token')
         password = data.get("password")
+        confirm_password = data.get("confirm_password")
 
-        if not token or not password:
-            return Response({"error": "Token and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not token or not password or not confirm_password :
+            return Response({"error": "Token, password and confirm_password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if password != confirm_password :
+            return Response({"error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = CustomUser.objects.filter(reset_token=token).first()
 
-        if not user or user.reset_token_expire < now():
-            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        # if not user or user.reset_token_expire < now():
+        if not user:
+            return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the password and activate the user
         validate_password(password)
@@ -308,8 +313,9 @@ class ResetPasswordAPIView(APIView):
         # Check permission
         self.check_object_permissions(request, user)
 
-        if not user or user.reset_token_expire < now():
-            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        # if not user or user.reset_token_expire < now():
+        if not user:
+            return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the password and activate the user
         validate_password(password)
