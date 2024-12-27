@@ -233,8 +233,7 @@ class SetPasswordAPIView(APIView):
 
         user = CustomUser.objects.filter(reset_token=token).first()
 
-        # if not user or user.reset_token_expire < now():
-        if not user:
+        if not user or user.reset_token_expire < now():
             return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the password and activate the user
@@ -313,8 +312,7 @@ class ResetPasswordAPIView(APIView):
         # Check permission
         self.check_object_permissions(request, user)
 
-        # if not user or user.reset_token_expire < now():
-        if not user:
+        if not user or user.reset_token_expire < now():
             return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the password and activate the user
