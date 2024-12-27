@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.core.exceptions import ValidationError
 import uuid
@@ -680,3 +681,42 @@ class PasswordResetToken(models.Model):
     class Meta:
         verbose_name = "Password Reset Token"
         verbose_name_plural = "Password Reset Tokens"
+    
+class UserToken(models.Model):
+    """
+    Model representing a refresh token for a user.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        CustomUser, 
+        on_delete=models.SET_NULL,
+        null=True, 
+        blank=True
+    )
+    refresh_token = models.TextField()
+    access_token = models.TextField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_valid(self):
+        # Check if the refresh token is still valid
+        try:
+            token = RefreshToken(self.refresh_token)
+            return True
+        except Exception:
+            return False
+
+class UserTokenBlacklisted(models.Model):
+    """
+    Model representing a refresh token blacklisted for a user.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        CustomUser, 
+        on_delete=models.SET_NULL,
+        null=True, 
+        blank=True
+    )
+    refresh_token = models.TextField()
+    access_token = models.TextField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+

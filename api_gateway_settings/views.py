@@ -6,7 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.utils.timezone import now
 from django.contrib.auth import authenticate
-from api_users.models import CustomUser
+from api_users.models import CustomUser, UserToken, UserTokenBlacklisted
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class UserInfoView(APIView):
     """
@@ -34,6 +35,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         username_or_email = request.data.get('login')
         password = request.data.get('password')
 
+        if not username_or_email or not password:
+            return Response({"error": "username_or_email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
         # Determine if identifier is email or username
         if '@' in username_or_email:
             # Treat as email
@@ -57,9 +61,30 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # Check if a token exists and is valid
+        try:
+            user_token = UserToken.objects.get(user=user)
+            if user_token.is_valid():
+                # blacklist existing tokens
+                refresh = RefreshToken(user_token.refresh_token)
+                refresh.blacklist()
+
+                UserTokenBlacklisted.objects.create(user=user, refresh_token=str(user_token.refresh_token), access_token=str(user_token.access_token))
+
+                user_token.delete()
+            else:
+                user_token.delete() 
+        except UserToken.DoesNotExist:
+            pass
+
         # Generate tokens
         serializer = self.get_serializer(data={"username": username, "password": password})
         serializer.is_valid(raise_exception=True)
+
+        refresh = serializer.validated_data["refresh"]
+        access = serializer.validated_data["access"]
+        
+        UserToken.objects.create(user=user, refresh_token=str(refresh), access_token=str(access))
 
         # Update last login
         user.last_login = now()

@@ -4,8 +4,13 @@ from django.utils.deprecation import MiddlewareMixin
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from django.contrib.auth.models import AnonymousUser
-from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import status
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+import jwt
+from . import settings
+
+from api_users.models import UserTokenBlacklisted
 
 class AppendSlashMiddleware:
     def __init__(self, get_response):
@@ -57,9 +62,49 @@ class JWTUserMiddleware(MiddlewareMixin):
 
         # Validate and decode the token using SimpleJWT
         jwt_authenticator = JWTAuthentication()
+
         try:
+            # Decode the token
             validated_token = jwt_authenticator.get_validated_token(token)
+
+            try:
+                user_token_blacklisted = UserTokenBlacklisted.objects.get(access_token=validated_token)
+                # decode user refresh token
+                if user_token_blacklisted :
+                    decoded_payload = jwt.decode(
+                        user_token_blacklisted.refresh_token,
+                        settings.SIMPLE_JWT["SIGNING_KEY"],
+                        algorithms=[settings.SIMPLE_JWT["ALGORITHM"]],
+                        options={"verify_exp": False},
+                    )
+                    # RefreshToken(user_token_blacklisted.refresh_token)
+                    jti = decoded_payload.get('jti')  
+
+                    # print(jti)
+
+                    # Get OutstandingToken instance
+                    outstanding_token = OutstandingToken.objects.filter(jti=jti).first()
+                    if not outstanding_token:
+                        return JsonResponse(
+                            {"error": "Token does not exist in the database."},
+                            status=status.HTTP_401_UNAUTHORIZED
+                        )
+
+                    # Check if the token is blacklisted
+                    if BlacklistedToken.objects.filter(token=outstanding_token).exists():
+                        return JsonResponse(
+                            {"error": "Token provided is blacklisted or expired."},
+                            status=status.HTTP_401_UNAUTHORIZED
+                        )
+            except UserTokenBlacklisted.DoesNotExist:
+                pass
+
+            # print(validated_token)
+            # print(user_refresh_token.refresh_token)
+
+            # Retrieve the user from the token
             user = jwt_authenticator.get_user(validated_token)
+
         except (InvalidToken, TokenError):
             return JsonResponse(
                 {"error": "Invalid or expired token."},
@@ -68,4 +113,3 @@ class JWTUserMiddleware(MiddlewareMixin):
 
         # Attach the authenticated user to the request
         request.user = user
-        # print(request.user)
