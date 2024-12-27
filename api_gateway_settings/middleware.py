@@ -75,7 +75,7 @@ class JWTUserMiddleware(MiddlewareMixin):
                         user_token_blacklisted.refresh_token,
                         settings.SIMPLE_JWT["SIGNING_KEY"],
                         algorithms=[settings.SIMPLE_JWT["ALGORITHM"]],
-                        options={"verify_exp": False},
+                        # options={"verify_exp": True},
                     )
                     # RefreshToken(user_token_blacklisted.refresh_token)
                     jti = decoded_payload.get('jti')  
@@ -93,7 +93,7 @@ class JWTUserMiddleware(MiddlewareMixin):
                     # Check if the token is blacklisted
                     if BlacklistedToken.objects.filter(token=outstanding_token).exists():
                         return JsonResponse(
-                            {"error": "Token provided is blacklisted or expired."},
+                            {"error": "Token provided is blacklisted."},
                             status=status.HTTP_401_UNAUTHORIZED
                         )
             except UserTokenBlacklisted.DoesNotExist:
