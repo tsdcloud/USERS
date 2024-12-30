@@ -93,7 +93,8 @@ class JWTUserMiddleware(MiddlewareMixin):
                     # Check if the token is blacklisted
                     if BlacklistedToken.objects.filter(token=outstanding_token).exists():
                         return JsonResponse(
-                            {"error": "Token provided is blacklisted."},
+                            # {"error": "Token provided is blacklisted."},
+                            {"error": "your token has been blacklisted due to a new connection, continue where you were last connected, if this is not you, contact your administrator"},
                             status=status.HTTP_401_UNAUTHORIZED
                         )
             except UserTokenBlacklisted.DoesNotExist:
