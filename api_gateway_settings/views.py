@@ -22,7 +22,10 @@ class UserInfoView(APIView):
             "username": user.username,
             "email": user.email,
             "first_name": user.first_name,
-            "last_name": user.last_name
+            "last_name": user.last_name,
+            "is_admin": user.is_admin,
+            "is_superuser": user.is_superuser,
+            "is_staff": user.is_staff
         })
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -48,9 +51,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     {"success": False, "message": "Invalid email or username."},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
-        else:
+        elif '@' not in username_or_email:
             # Treat as username
             username = username_or_email
+        else:
+            return Response(
+                {"message": "please provide a valid login."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Authenticate user
         user = authenticate(username=username, password=password)

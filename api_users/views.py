@@ -49,8 +49,8 @@ class IsOwnerOrAdmin(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        # Check if the user is an administrator or super administrator
-        if request.user.is_superuser or request.user.is_staff:
+        # Check if the user is an administrator or super administrator or admin
+        if request.user.is_superuser or request.user.is_staff or request.user.is_admin:
             return True
         
         # Check if the user is the owner of the object
@@ -73,7 +73,9 @@ class UserView(APIView):
         If `pk` is provided, fetch a single instance; otherwise, fetch all instances.
         """
         if pk:
-            instance = get_object_or_404(CustomUser.objects.filter(is_active=True), pk=pk)
+            # instance = get_object_or_404(CustomUser.objects.filter(is_active=True), pk=pk)
+            if request.user.is_superuser == True or request.user.is_admin == True:
+                instance = get_object_or_404(CustomUser, pk=pk)
 
             # Check permission
             self.check_object_permissions(request, instance)
@@ -81,8 +83,12 @@ class UserView(APIView):
             serializer = UserDetailSerializer(instance)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            instances = CustomUser.objects.filter(is_active=True)
-
+            # instances = CustomUser.objects.filter(is_active=True)
+            if request.user.is_superuser == True:
+                instances = CustomUser.objects.all()
+            elif request.user.is_admin == True:
+                instances = CustomUser.objects.filter(is_active=True)
+                
             # Check permission
             self.check_object_permissions(request, instances)
 

@@ -73,6 +73,7 @@ class CustomUser(AbstractUser):
         is_active (BooleanField): Flag to indicate if the user is active.
         is_staff (BooleanField): Flag to indicate if the user is a staff member.
         is_superuser (BooleanField): Flag to indicate if the user is a superuser.
+        is_admin (BooleanField): Flag to indicate if the user is admin.
         date_joined (DateTimeField): Timestamp of when the user joined.
         password (CharField): The user's password, stored securely as a hash.
         reset_token (CharField): Token used for password reset, sent to the user for identity verification.
@@ -87,6 +88,7 @@ class CustomUser(AbstractUser):
     phone = models.CharField(_("phone"), max_length=50, blank=True, null=True)
     is_active = models.BooleanField(_("active"), default=True)
     is_staff = models.BooleanField(_("staff status"), default=False)
+    is_admin = models.BooleanField(_("admin status"), default=False)
     is_superuser = models.BooleanField(default=False)
     date_joined = models.DateTimeField(_("date joined"), auto_now_add=True)
     password = models.CharField(_("password"), max_length=255)
