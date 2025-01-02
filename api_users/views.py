@@ -272,8 +272,9 @@ class EmailToResetPasswordAPIView(APIView):
         # Check permission
         self.check_object_permissions(request, user)
 
-        # Construct the reset URL
-        reset_url = f"{'http://127.0.0.1:8000/api_gateway/api/reset_password/'}?token={reset_token}"
+        # Construct the reset URL 
+        reset_url = f"{'http://localhost:5173/confirmPassword'}?token={reset_token}"
+        # reset_url = f"{'http://127.0.0.1:8000/api_gateway/api/reset_password/'}?token={reset_token}"
 
         # Send email with the reset link
         send_mail(
