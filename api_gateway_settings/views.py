@@ -55,6 +55,22 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             # Treat as username
             username = username_or_email
 
+        # check if the user is active
+        try:
+            if '@' in username_or_email :
+                user = CustomUser.objects.filter(email=username_or_email).first()
+            else:
+                user = CustomUser.objects.filter(username=username_or_email).first()
+
+            if user:
+                if not user.is_active:
+                    return Response(
+                        {"message": "Account deactivated, please contact administrator."},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+        except CustomUser.DoesNotExist:
+            pass
+        
         # Authenticate user
         user = authenticate(username=username, password=password)
 
