@@ -51,14 +51,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     {"success": False, "message": "Invalid email or username."},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
-        elif '@' not in username_or_email:
+        else:
             # Treat as username
             username = username_or_email
-        else:
-            return Response(
-                {"message": "please provide a valid login."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         # Authenticate user
         user = authenticate(username=username, password=password)
