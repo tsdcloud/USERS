@@ -257,11 +257,13 @@ class EmailToResetPasswordAPIView(APIView):
     API View to get email to reset password.
     """
 
-    permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
+    # permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
 
     def post(self, request):
         data = request.data
         email = data.get("email")
+
+        # print(request.user.email)
 
         # Create a token to use to reset the password
         reset_token = str(uuid.uuid4())
@@ -295,41 +297,116 @@ class EmailToResetPasswordAPIView(APIView):
         user.save()
 
         return Response({"success": "email sent succesfully, check your email and follow the instruction."}, status=status.HTTP_200_OK)
-    
-class ResetPasswordAPIView(APIView):
+
+class ChangePasswordAPIView(APIView):
     """
-    API View to reset password.
+    API View to change setting without using a token.
     """
+
     permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
 
     def post(self, request):
         data = request.data
-        token = request.query_params.get('token')
         password = data.get("password")
         confirm_password = data.get("confirm_password")
 
-        if not token:
-            return Response({"error": "Token are required."}, status=status.HTTP_400_BAD_REQUEST)
+        email = request.user.email
+
+        if not password or not confirm_password :
+            return Response({"error": "Password and confirm_password are required."}, status=status.HTTP_400_BAD_REQUEST)
         
         if password != confirm_password :
             return Response({"error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = CustomUser.objects.filter(reset_token=token).first()
-
-        # Check permission
-        self.check_object_permissions(request, user)
-
-        if not user or user.reset_token_expire < now():
-            return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        user = CustomUser.objects.filter(email=email).first()
 
         # Set the password and activate the user
         validate_password(password)
         user.password = make_password(password)
-        user.reset_token = None
-        user.reset_token_expire = None
         user.save()
 
-        return Response({"message": "Password reset successfully. You can now log in."}, status=status.HTTP_200_OK)
+        return Response({"message": "Password change successfully."}, status=status.HTTP_200_OK)
+
+# class EmailToChangePasswordAPIView(APIView):
+#     """
+#     API View to get email to change password.
+#     """
+
+#     permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
+
+#     def post(self, request):
+
+#         email = request.user.email
+
+#         # print(request.user.email)
+
+#         # Create a token to use to reset the password
+#         reset_token = str(uuid.uuid4())
+#         token_expiry = now() + timedelta(hours=24)
+
+#         user = CustomUser.objects.filter(email=email).first()
+
+#         # Check permission
+#         self.check_object_permissions(request, user)
+
+#         # Construct the reset URL 
+#         reset_url = f"{'http://localhost:5173/confirmPassword/'}?token={reset_token}"
+#         # reset_url = f"{'http://127.0.0.1:8000/api_gateway/api/reset_password/'}?token={reset_token}"
+
+#         # Send email with the reset link
+#         send_mail(
+#             "Set Your Password",
+#             f"Hi {user.first_name},\nPlease click the link below to reset your password:\n{reset_url}",
+#             "tsd@bfclimited.com",
+#             [email],
+#             fail_silently=False,
+#             html_message=f"""
+#                 <p>Hi {user.first_name},</p>
+#                 <p>Please click the link below to reset your password:</p>
+#                 <a href="{reset_url}">Set Your Password</a>
+#             """
+#         )
+
+#         user.reset_token = reset_token
+#         user.reset_token_expire = token_expiry
+#         user.save()
+
+#         return Response({"success": "email sent succesfully, check your email and follow the instruction."}, status=status.HTTP_200_OK)
+
+# class ResetPasswordAPIView(APIView):
+#     """
+#     API View to reset password.
+#     """
+#     permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
+
+#     def post(self, request):
+#         data = request.data
+#         token = request.query_params.get('token')
+#         password = data.get("password")
+#         confirm_password = data.get("confirm_password")
+
+#         if not token:
+#             return Response({"error": "Token are required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+#         if password != confirm_password :
+#             return Response({"error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         user = CustomUser.objects.filter(reset_token=token).first()
+
+#         # Check permission
+#         self.check_object_permissions(request, user)
+
+#         if not user or user.reset_token_expire < now():
+#             return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Set the password and activate the user
+#         validate_password(password)
+#         user.password = make_password(password)
+#         user.reset_token = None
+#         user.reset_token_expire = None
+#         user.save()
+
+#         return Response({"message": "Password reset successfully. You can now log in."}, status=status.HTTP_200_OK)
 
 class SearchUserView(APIView):
     """

@@ -11,7 +11,7 @@ from .views import (
     SetPasswordAPIView,
     SearchUserView,
     EmailToResetPasswordAPIView,
-    ResetPasswordAPIView
+    ChangePasswordAPIView
 )
 
 urlpatterns = [
@@ -34,5 +34,6 @@ urlpatterns = [
     path('assign_permission_application/', AssignPermissionToApplicationAPIView.as_view()),
     path('assign_permission_application/<uuid:pk>/', AssignPermissionToApplicationAPIView.as_view()),
     path("email_reset_password/", EmailToResetPasswordAPIView.as_view(), name="email_reset_password"),
-    path("reset_password/", ResetPasswordAPIView.as_view(), name="reset_password"),
+    # path("email_change_password/", EmailToChangePasswordAPIView.as_view(), name="email_change_password"),
+    path("change_password/", ChangePasswordAPIView.as_view()),
 ]
