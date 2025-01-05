@@ -10,7 +10,11 @@ from .models import (
     AssignPermissionApplication 
 )
 
-import re
+import re, uuid
+from django.utils.translation import gettext_lazy as _
+from django.utils.timezone import now, timedelta
+from .utils import validate_password, generate_random_chain
+from django.core.mail import send_mail
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -48,6 +52,100 @@ class UserSerializer(serializers.ModelSerializer):
             "phone": obj.updated_by.phone
         } if obj.updated_by else None
     
+    # Fields validation
+    def validate_email(self, value):
+        """
+        Validates that the email contains only allowed characters.
+        """
+        email_regex = r'^[A-Za-z0-9._@\-]+$'
+        if not re.match(email_regex, value):
+            raise serializers.ValidationError(_("The email address contains invalid characters. Only letters, numbers, and '@', '_', '-', '.' are allowed."))
+        if CustomUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError(_("Email is already taken"))
+        return value
+
+    def validate_username(self, value):
+        """
+        Validates that the username contains only allowed characters.
+        """
+        if not value:
+            raise serializers.ValidationError(_("Username cannot be empty"))
+        if not re.match(r'^[A-Za-z0-9._]+$', value):
+            raise serializers.ValidationError(_("Username can only contain letters, numbers, dots (.) and underscores (_)"))
+        if CustomUser.objects.filter(username=value).exists():
+            raise serializers.ValidationError(_("Username is already taken"))
+        return value
+
+    def validate_first_name(self, value):
+        """
+        Validates that the first name contains only letters.
+        """
+        if not value:
+            raise serializers.ValidationError(_("First name cannot be empty"))
+        if not re.match(r"^[A-Za-zà-ÿÀ-Ÿ]+$", value):
+            raise serializers.ValidationError(_("First name can only contain letters"))
+        return value
+
+    def validate_last_name(self, value):
+        """
+        Validates that the last name contains only allowed characters.
+        """
+        if value and not re.match(r"^[A-Za-zà-ÿÀ-Ÿ' -]+$", value):
+            raise serializers.ValidationError(_("Last name can only contain letters, spaces, apostrophes, and hyphens"))
+        return value
+
+    def validate_phone(self, value):
+        """
+        Validates that the phone number contains only allowed characters.
+        """
+        if value:
+            if len(value) < 9:
+                raise serializers.ValidationError(_("Phone number must be at least 9 characters long"))
+            if not re.match(r'^[0-9\-]+$', value):
+                raise serializers.ValidationError(_("Phone number can only contain digits and hyphens"))
+        return value
+    
+    def create(self, validated_data):
+
+        # Generate a random reset token
+        reset_token = str(uuid.uuid4())
+        validated_data['reset_token'] = reset_token
+        validated_data['reset_token_expire'] = now() + timedelta(hours=24)
+
+        # Handle password separately
+        password = validated_data.pop('password', None)
+        user = CustomUser(**validated_data)
+        if password:
+            user.set_password(password)
+        else:
+            # Generate a random password if not provided
+            user.set_password(generate_random_chain(12))
+
+        # Construct the reset URL
+        reset_url = f"http://localhost:5173/confirmPassword/?token={reset_token}"
+
+        # Send email with the reset link
+        email = validated_data['email']
+        first_name = validated_data['first_name']
+        try:
+            send_mail(
+                subject="Set Your Password",
+                message=f"Hi {first_name},\nPlease click the link below to set your password:\n{reset_url}",
+                from_email="tsd@bfclimited.com",
+                recipient_list=[email],
+                fail_silently=False,
+                html_message=f"""
+                    <p>Hi {first_name},</p>
+                    <p>Please click the link below to set your password:</p>
+                    <a href="{reset_url}">Set Your Password</a>
+                """
+            )
+        except Exception as e:
+            raise serializers.ValidationError({"email_error": _("Failed to send email. Please try again.")})
+        
+        user.save()
+        return user
+    
     def update(self, instance, validated_data):
         validated_data.pop('password', None)
         return super().update(instance, validated_data)
@@ -60,33 +158,33 @@ class PermissionSerializer(serializers.ModelSerializer):
     - Allows the creation and updating of permission names, descriptions, and active status.
     """
 
-    perm_created_by = serializers.SerializerMethodField()
-    perm_updated_by = serializers.SerializerMethodField()
+    # perm_created_by = serializers.SerializerMethodField()
+    # perm_updated_by = serializers.SerializerMethodField()
     
     class Meta:
         model = Permission
-        fields = ['id', 'permission_name', 'description', 'perm_created_by', 'perm_updated_by']
+        fields = ['id', 'permission_name', 'description']
         read_only_fields = ['created_by', 'date_created']
     
-    def get_perm_created_by(self, obj):
-        return {
-            "id": obj.created_by.id,
-            "username": obj.created_by.username,
-            "email": obj.created_by.email,
-            "first_name": obj.created_by.first_name,
-            "last_name": obj.created_by.last_name,
-            "phone": obj.created_by.phone
-        } if obj.created_by else None
+    # def get_perm_created_by(self, obj):
+    #     return {
+    #         "id": obj.created_by.id,
+    #         "username": obj.created_by.username,
+    #         "email": obj.created_by.email,
+    #         "first_name": obj.created_by.first_name,
+    #         "last_name": obj.created_by.last_name,
+    #         "phone": obj.created_by.phone
+    #     } if obj.created_by else None
     
-    def get_perm_updated_by(self, obj):
-        return {
-            "id": obj.updated_by.id,
-            "username": obj.updated_by.username,
-            "email": obj.updated_by.email,
-            "first_name": obj.updated_by.first_name,
-            "last_name": obj.updated_by.last_name,
-            "phone": obj.updated_by.phone
-        } if obj.updated_by else None
+    # def get_perm_updated_by(self, obj):
+    #     return {
+    #         "id": obj.updated_by.id,
+    #         "username": obj.updated_by.username,
+    #         "email": obj.updated_by.email,
+    #         "first_name": obj.updated_by.first_name,
+    #         "last_name": obj.updated_by.last_name,
+    #         "phone": obj.updated_by.phone
+    #     } if obj.updated_by else None
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -96,32 +194,32 @@ class RoleSerializer(serializers.ModelSerializer):
     - Allows the creation and updating of role names, descriptions, and active status.
     """
 
-    role_created_by = serializers.SerializerMethodField()
-    role_updated_by = serializers.SerializerMethodField()
+    # role_created_by = serializers.SerializerMethodField()
+    # role_updated_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Role
-        fields = ['id', 'role_name', 'description', 'role_created_by', 'role_updated_by']
+        fields = ['id', 'role_name', 'description']
     
-    def get_role_created_by(self, obj):
-        return {
-            "id": obj.created_by.id,
-            "username": obj.created_by.username,
-            "email": obj.created_by.email,
-            "first_name": obj.created_by.first_name,
-            "last_name": obj.created_by.last_name,
-            "phone": obj.created_by.phone
-        } if obj.created_by else None
+    # def get_role_created_by(self, obj):
+    #     return {
+    #         "id": obj.created_by.id,
+    #         "username": obj.created_by.username,
+    #         "email": obj.created_by.email,
+    #         "first_name": obj.created_by.first_name,
+    #         "last_name": obj.created_by.last_name,
+    #         "phone": obj.created_by.phone
+    #     } if obj.created_by else None
     
-    def get_role_updated_by(self, obj):
-        return {
-            "id": obj.updated_by.id,
-            "username": obj.updated_by.username,
-            "email": obj.updated_by.email,
-            "first_name": obj.updated_by.first_name,
-            "last_name": obj.updated_by.last_name,
-            "phone": obj.updated_by.phone
-        } if obj.updated_by else None
+    # def get_role_updated_by(self, obj):
+    #     return {
+    #         "id": obj.updated_by.id,
+    #         "username": obj.updated_by.username,
+    #         "email": obj.updated_by.email,
+    #         "first_name": obj.updated_by.first_name,
+    #         "last_name": obj.updated_by.last_name,
+    #         "phone": obj.updated_by.phone
+    #     } if obj.updated_by else None
 
 class ApplicationSerializer(serializers.ModelSerializer):
     """
@@ -383,12 +481,12 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone', 'is_staff', 'is_active', 'is_superuser', 'user_created_by', 'user_updated_by', 'roles', 'permissions']
 
     def get_roles(self, obj):
-        # Récupérer les rôles assignés à l'utilisateur
+        # Retrieve user-assigned roles
         assigned_roles = AssignRoleToUser.objects.filter(user_id=obj).select_related('role_id')
         return RoleWithPermissionsSerializer([role.role_id for role in assigned_roles], many=True).data
 
     def get_permissions(self, obj):
-        # Récupérer les permissions directement assignées à l'utilisateur
+        # Retrieve permissions directly assigned to the user
         assigned_permissions = AssignPermissionToUser.objects.filter(user_id=obj).select_related('permission_id')
         return PermissionSerializer([perm.permission_id for perm in assigned_permissions], many=True).data
     
@@ -425,3 +523,38 @@ class RoleWithPermissionsSerializer(serializers.ModelSerializer):
         role_permissions = AssignPermissionToRole.objects.filter(role_id=obj).select_related('permission_id')
         return PermissionSerializer([perm.permission_id for perm in role_permissions], many=True).data
 
+class UserWithPermissionsSerializer(serializers.ModelSerializer):
+    permissions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'permissions']
+
+    def get_permissions(self, obj):
+        # Retrieve user permissions
+        role_permissions = AssignPermissionToUser.objects.filter(user_id=obj).select_related('permission_id')
+        return PermissionSerializer([perm.permission_id for perm in role_permissions], many=True).data
+
+class UserWithRolesSerializer(serializers.ModelSerializer):
+    roles = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'roles']
+
+    def get_roles(self, obj):
+        # Retrieve user_assigned roles
+        assigned_roles = AssignRoleToUser.objects.filter(user_id=obj).select_related('role_id')
+        return RoleWithPermissionsSerializer([role.role_id for role in assigned_roles], many=True).data
+    
+class ApplicationWithPermissionSerializer(serializers.ModelSerializer):
+    permissions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Application
+        fields = ['id', 'application_name', 'description', 'permissions']
+
+    def get_permissions(self, obj):
+        # Retrieve user permissions
+        role_permissions = AssignPermissionApplication.objects.filter(application_id=obj).select_related('permission_id')
+        return PermissionSerializer([perm.permission_id for perm in role_permissions], many=True).data

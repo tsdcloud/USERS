@@ -131,108 +131,10 @@ class CustomUser(AbstractUser):
         """
         return self.username
 
-    def clean(self):
-        """
-        Performs validation on the user fields before saving the instance.
-
-        Validates email format, username format, password security, and ensures fields like first name, last name, and phone are set correctly.
-        """
-        super().clean()
-        if not self.email:
-            raise ValidationError(_("Email cannot be empty"))
-        
-        if '@' not in self.email:
-            raise ValidationError(_("Email must contain the '@' symbol"))
-        
-        if self.pk is None : 
-            CustomUser.objects.filter(email=self.email).exists()
-            raise ValidationError(_("Email is already taken"))
-
-        # if not self.password:
-        #     raise ValidationError(_("Password cannot be empty"))
-        # self.validate_password(self.password)
-
-        if self.pk is None: 
-            if self.username:
-                raise ValidationError(_("Username cannot be empty"))
-        self.validate_username(self.username)
-
-        if not self.first_name:
-            raise ValidationError(_("First name cannot be empty"))
-        self.validate_first_name(self.first_name)
-
-        if self.last_name:
-            self.last_name.strip()
-            self.validate_last_name(self.last_name)
-
-        if self.phone:
-            self.validate_phone(self.phone)
-
-    def validate_username(self, username):
-        """
-        Validates that the username contains only letters, numbers, dots (.), and underscores (_), and is unique.
-
-        Args:
-            username (str): The username to validate.
-
-        Raises:
-            ValidationError: If the username contains invalid characters or is not unique.
-        """
-        if not re.match(r'^[A-Za-z0-9._]+$', username):
-            raise ValidationError(_("Username can only contain letters, numbers, dots (.) and underscores (_)"))
-        if self.pk is None:
-            if CustomUser.objects.filter(username=username).exists():
-                raise ValidationError(_("Username is already taken"))
-
-    def validate_first_name(self, first_name):
-        """
-        Validates that the first name contains only letters.
-
-        Args:
-            first_name (str): The first name to validate.
-
-        Raises:
-            ValidationError: If the first name contains invalid characters.
-        """
-        if not re.match(r"^[A-Za-zà-ÿÀ-Ÿ]+$", first_name):
-            raise ValidationError(_("First name can only contain letters"))
-    
-    def validate_last_name(self, last_name):
-        """
-        Validates that the last name contains only letters, spaces, apostrophes, and hyphens, and has no leading/trailing spaces.
-
-        Args:
-            last_name (str): The last name to validate.
-
-        Raises:
-            ValidationError: If the last name contains invalid characters or leading/trailing spaces.
-        """
-        if not re.match(r"^[A-Za-zà-ÿÀ-Ÿ' -]+$", last_name):
-            raise ValidationError(_("Last name can only contain letters, spaces, apostrophes, and hyphens"))
-
-    def validate_phone(self, phone):
-        """
-        Validates that the phone number contains only digits and hyphens and is at least 9 characters long.
-
-        Args:
-            phone (str): The phone number to validate.
-
-        Raises:
-            ValidationError: If the phone number is too short or contains invalid characters.
-        """
-        if len(phone) < 9:
-            raise ValidationError(_("Phone number must be at least 9 characters long"))
-        if not re.match(r'^[0-9\-]+$', phone):
-            raise ValidationError(_("Phone number can only contain digits and hyphens"))
-
     def save(self, *args, **kwargs):
         """
-        Saves the user instance after validating and hashing the password.
-
-        Calls full_clean() to validate the fields, and hashes the password if set.
+        Saves the user instance
         """
-        self.full_clean()  # Validate before saving
-
         super().save(*args, **kwargs)
 
 

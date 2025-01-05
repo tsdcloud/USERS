@@ -1,4 +1,4 @@
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView, TokenVerifyView
 from rest_framework.response import Response
 from rest_framework import status
 # from .serializers import CustomTokenObtainPairSerializer
@@ -8,6 +8,9 @@ from django.utils.timezone import now
 from django.contrib.auth import authenticate
 from api_users.models import CustomUser, UserToken, UserTokenBlacklisted
 from rest_framework_simplejwt.tokens import RefreshToken
+import jwt
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
 
 class UserInfoView(APIView):
     """
@@ -17,7 +20,7 @@ class UserInfoView(APIView):
 
     def get(self, request):
         user = request.user
-        return Response({
+        return Response({"success": True, "data":{
             "id": user.id,
             "username": user.username,
             "email": user.email,
@@ -26,7 +29,7 @@ class UserInfoView(APIView):
             "is_admin": user.is_admin,
             "is_superuser": user.is_superuser,
             "is_staff": user.is_staff
-        })
+        }})
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     """
@@ -39,7 +42,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         password = request.data.get('password')
 
         if not username_or_email or not password:
-            return Response({"error": "username_or_email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "error": "username_or_email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Determine if identifier is email or username
         if '@' in username_or_email:
@@ -118,3 +121,63 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             },
             status=status.HTTP_200_OK,
         )
+
+class CustomTokenVerifyView(TokenVerifyView):
+
+    def post(self, request, *args, **kwargs):
+        """
+        This method can be used to verify the JWT token. Only admin and super users can access it.
+        """
+        jwt_authenticator = JWTAuthentication()
+        
+        auth_header = request.headers.get('Authorization', None)
+
+        if not auth_header:
+            return Response({"success": False, "error": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+        # Extract the JWT token
+        token = auth_header.split(' ')[1]
+
+        # Decode the token
+        validated_token = jwt_authenticator.get_validated_token(token)
+
+        # Retrieve the user from the token
+        user = jwt_authenticator.get_user(validated_token)
+
+        print(user.is_superuser)
+
+        if not (user.is_superuser or user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
+        return super().post(request, *args, **kwargs)
+
+
+class CustomTokenBlacklistView(TokenBlacklistView):
+
+    def post(self, request, *args, **kwargs):
+        """
+        This method can be used to blacklist the JWT token. Only admin and super users can access it.
+        """
+        jwt_authenticator = JWTAuthentication()
+        
+        auth_header = request.headers.get('Authorization', None)
+
+        if not auth_header:
+            return Response({"success": False, "error": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Extract the JWT token
+        token = auth_header.split(' ')[1]
+
+        # Decode the token
+        validated_token = jwt_authenticator.get_validated_token(token)
+
+        # Retrieve the user from the token
+        user = jwt_authenticator.get_user(validated_token)
+
+        print(user.is_superuser)
+
+        if not (user.is_superuser or user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
+        return super().post(request, *args, **kwargs)
