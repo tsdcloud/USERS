@@ -161,10 +161,14 @@ class Role(models.Model):
         unique=True,
         help_text="Unique name of the role, allowing only alphanumeric characters, dashes, and underscores."
     )
+    display_name = models.CharField(
+        max_length=100,
+        null=True
+    )
     description = models.TextField(
         max_length=255,
-        null=True,
         blank=True,
+        null=True,
         help_text="Detailed description of the role's responsibilities and privileges."
     )
     is_active = models.BooleanField(
@@ -229,13 +233,19 @@ class Permission(models.Model):
         unique=True,
         help_text="Unique name for the permission, allowing only alphanumeric characters, dashes, and underscores."
     )
+    display_name = models.CharField(
+        max_length=100,
+        null=True
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Indicates whether the permission is active (True) or inactive (False)."
     )
     description = models.TextField(
         max_length=255,
-        help_text="A detailed description of the permission's purpose and scope."
+        help_text="A detailed description of the permission's purpose and scope.",
+        blank=True,
+        null=True
     )
     date_created = models.DateTimeField(
         auto_now_add=True,
@@ -336,7 +346,7 @@ class Application(models.Model):
         help_text="The user who last updated this application (nullable)."
     )
     image = models.CharField(
-        max_length=100,
+        max_length=500,
         blank=True,
         null=True,
         help_text="Optional field for storing an image reference for the application."

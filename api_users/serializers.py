@@ -163,7 +163,7 @@ class PermissionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Permission
-        fields = ['id', 'permission_name', 'description']
+        fields = ['id', 'permission_name', 'display_name', 'description', 'is_active']
         read_only_fields = ['created_by', 'date_created']
     
     # def get_perm_created_by(self, obj):
@@ -186,6 +186,29 @@ class PermissionSerializer(serializers.ModelSerializer):
     #         "phone": obj.updated_by.phone
     #     } if obj.updated_by else None
 
+    # Fields validation
+    def validate_permission_name(self, value):
+        """
+        Validates permission name.
+        """
+        if not value:
+            raise serializers.ValidationError(_("permission name cannot be empty"))
+        if Permission.objects.filter(permission_name=value).exists():
+            raise serializers.ValidationError(_("permission with this name already exist"))
+        if not re.match(r'^[0-9\-]+$', value):
+            raise serializers.ValidationError(_("The permission field can only contain lowercase letters and underscores. Ex: can_change."))
+        return value
+    
+    def validate_display_name(self, value):
+        """
+        Validates display name.
+        """
+        if not value:
+            raise serializers.ValidationError(_("display name cannot be empty"))
+        if Permission.objects.filter(display_name=value).exists():
+            raise serializers.ValidationError(_("permission with this display name already exist"))
+        return value
+
 
 class RoleSerializer(serializers.ModelSerializer):
     """
@@ -199,7 +222,7 @@ class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
-        fields = ['id', 'role_name', 'description']
+        fields = ['id', 'role_name', 'display_name', 'description', 'is_active']
     
     # def get_role_created_by(self, obj):
     #     return {
@@ -221,6 +244,29 @@ class RoleSerializer(serializers.ModelSerializer):
     #         "phone": obj.updated_by.phone
     #     } if obj.updated_by else None
 
+    # Fields validation
+    def validate_role_name(self, value):
+        """
+        Validates role name.
+        """
+        if not value:
+            raise serializers.ValidationError(_("role name cannot be empty"))
+        if Role.objects.filter(permission_name=value).exists():
+            raise serializers.ValidationError(_("role with this name already exist"))
+        if not re.match(r'^[0-9\-]+$', value):
+            raise serializers.ValidationError(_("The role field can only contain lowercase letters and underscores. Ex: can_add_all."))
+        return value
+    
+    def validate_display_name(self, value):
+        """
+        Validates display name.
+        """
+        if not value:
+            raise serializers.ValidationError(_("display name cannot be empty"))
+        if Role.objects.filter(display_name=value).exists():
+            raise serializers.ValidationError(_("role with this display name already exist"))
+        return value
+
 class ApplicationSerializer(serializers.ModelSerializer):
     """
     Serializer to create, update, and retrieve applications.
@@ -233,7 +279,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Application
-        fields = ['id', 'application_name', 'description', 'url', 'app_created_by', 'app_updated_by']
+        fields = ['id', 'application_name', 'description', 'url', 'app_created_by', 'app_updated_by', 'is_active']
         read_only_fields = ['created_by', 'date_created']
     
     def get_app_created_by(self, obj):
@@ -255,6 +301,17 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "last_name": obj.updated_by.last_name,
             "phone": obj.updated_by.phone
         } if obj.updated_by else None
+    
+    # Fields validation
+    def validate_application_name(self, value):
+        """
+        Validates application name.
+        """
+        if not value:
+            raise serializers.ValidationError(_("application name cannot be empty"))
+        if Permission.objects.filter(permission_name=value).exists():
+            raise serializers.ValidationError(_("application with this name already exist"))
+        return value
 
 
 # Serializer for AssignPermissionToUser
@@ -296,6 +353,7 @@ class AssignPermissionToUserSerializer(serializers.ModelSerializer):
         return {
             "id": obj.permission_id.id,
             "permission_name": obj.permission_id.permission_name,
+            'display_name': obj.permission_id.display_name,
             "description": obj.permission_id.description
         }
 
@@ -349,6 +407,7 @@ class AssignRoleToUserSerializer(serializers.ModelSerializer):
         return {
             "id": obj.role_id.id,
             "role_name": obj.role_id.role_name,
+            'display_name': obj.role_id.display_name,
             "description": obj.role_id.description
         }
 
@@ -393,6 +452,7 @@ class AssignPermissionToRoleSerializer(serializers.ModelSerializer):
         return {
             "id": obj.permission_id.id,
             "permission_name": obj.permission_id.permission_name,
+            'display_name': obj.permission_id.display_name,
             "description": obj.permission_id.description
         }
 
@@ -400,6 +460,7 @@ class AssignPermissionToRoleSerializer(serializers.ModelSerializer):
         return {
             "id": obj.role_id.id,
             "role_name": obj.role_id.role_name,
+            'display_name': obj.role_id.display_name,
             "description": obj.role_id.description
         }
 
@@ -516,7 +577,7 @@ class RoleWithPermissionsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
-        fields = ['id', 'role_name', 'description', 'permissions']
+        fields = ['id', 'role_name', 'display_name', 'description', 'permissions']
 
     def get_permissions(self, obj):
         # Retrieve role permissions
