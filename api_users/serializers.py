@@ -82,8 +82,8 @@ class UserSerializer(serializers.ModelSerializer):
         """
         if not value:
             raise serializers.ValidationError(_("First name cannot be empty"))
-        if not re.match(r"^[A-Za-zà-ÿÀ-Ÿ]+$", value):
-            raise serializers.ValidationError(_("First name can only contain letters"))
+        if not re.match(r"^[A-Za-zà-ÿÀ-Ÿ' -]+$", value):
+            raise serializers.ValidationError(_("firstname can only contain letters, spaces, apostrophes, and hyphens"))
         return value
 
     def validate_last_name(self, value):
