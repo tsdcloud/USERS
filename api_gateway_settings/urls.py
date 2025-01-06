@@ -37,8 +37,8 @@ urlpatterns = [
     path('gateway/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'), 
     path('gateway/user_info/', UserInfoView.as_view(), name='optain_user_info'), 
     path('gateway/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  
-    path('gateway/token/verify/', CustomTokenVerifyView.as_view(), name='token_verify'),  
-    path('gateway/token/revoke/', CustomTokenBlacklistView.as_view(), name='token_blacklist'),
+    path('gateway/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
+    path('gateway/token/revoke/', TokenBlacklistView.as_view(), name='token_blacklist'),
 
     path('gateway/api/', include('api_users.urls')),
 ]
