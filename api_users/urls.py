@@ -19,7 +19,7 @@ urlpatterns = [
     path('users/<uuid:pk>/', UserView.as_view()),
     path('users/search/', SearchUserView.as_view()),
     path("users/set_password/", SetPasswordAPIView.as_view(), name="set_password"),
-    path("users/<uuid:pk>/change_password/", ChangePasswordAPIView.as_view()),
+    path("users/change_password/", ChangePasswordAPIView.as_view()),
     path("email_reset_password/", EmailToResetPasswordAPIView.as_view(), name="email_reset_password"),
     path('permissions/', PermissionAPIView.as_view()),
     path('permissions/<uuid:pk>/', PermissionAPIView.as_view()),
