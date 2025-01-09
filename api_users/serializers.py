@@ -15,6 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now, timedelta
 from .utils import validate_password, generate_random_chain
 from django.core.mail import send_mail
+from django.db import transaction
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -58,6 +59,8 @@ class UserSerializer(serializers.ModelSerializer):
         Validates that the email contains only allowed characters.
         """
         email_regex = r'^[A-Za-z0-9._@\-]+$'
+        if not value:
+            raise serializers.ValidationError(_("Email cannot be empty"))
         if not re.match(email_regex, value):
             raise serializers.ValidationError(_("The email address contains invalid characters. Only letters, numbers, and '@', '_', '-', '.' are allowed."))
         if CustomUser.objects.filter(email=value).exists():
@@ -187,27 +190,55 @@ class PermissionSerializer(serializers.ModelSerializer):
     #     } if obj.updated_by else None
 
     # Fields validation
-    def validate_permission_name(self, value):
-        """
-        Validates permission name.
-        """
-        if not value:
-            raise serializers.ValidationError(_("permission name cannot be empty"))
-        if Permission.objects.filter(permission_name=value).exists():
-            raise serializers.ValidationError(_("permission with this name already exist"))
-        if not re.match(r'^[0-9\-]+$', value):
-            raise serializers.ValidationError(_("The permission field can only contain lowercase letters and underscores. Ex: can_change."))
-        return value
+    # def validate_permission_name(self, value):
+    #     """
+    #     Validates permission name.
+    #     """
+    #     if not value:
+    #         raise serializers.ValidationError(_("permission name cannot be empty"))
+    #     if Permission.objects.filter(permission_name=value).exists():
+    #         raise serializers.ValidationError(_("permission with this name already exist"))
+    #     if not re.match(r'^[0-9\-]+$', value):
+    #         raise serializers.ValidationError(_("The permission field can only contain lowercase letters and underscores. Ex: can_change."))
+    #     return value
     
     def validate_display_name(self, value):
         """
         Validates display name.
         """
+        # permission_name = value
         if not value:
             raise serializers.ValidationError(_("display name cannot be empty"))
         if Permission.objects.filter(display_name=value).exists():
             raise serializers.ValidationError(_("permission with this display name already exist"))
+        if not re.match(r'^[^_.]+$', value):
+            raise serializers.ValidationError(_("the display name must not contain underscores (_) or dots (.)"))
         return value
+    
+    def create(self, validated_data):
+
+        # Generate a random reset token
+        validated_data['permission_name'] = validated_data['display_name'].replace(" ", "_").lower()
+
+        if Permission.objects.filter(permission_name=validated_data['permission_name']).exists():
+            raise serializers.ValidationError(_("permission with this name already exist"))
+
+        perm = Permission(**validated_data)
+        
+        perm.save()
+        return perm
+    
+    def update(self, instance, validated_data):
+        if 'display_name' in validated_data:
+            validated_data['permission_name'] = validated_data['display_name'].replace(" ", "_").lower()
+        
+        # Update instance fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Save the instance
+        instance.save()
+        return instance
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -245,17 +276,17 @@ class RoleSerializer(serializers.ModelSerializer):
     #     } if obj.updated_by else None
 
     # Fields validation
-    def validate_role_name(self, value):
-        """
-        Validates role name.
-        """
-        if not value:
-            raise serializers.ValidationError(_("role name cannot be empty"))
-        if Role.objects.filter(permission_name=value).exists():
-            raise serializers.ValidationError(_("role with this name already exist"))
-        if not re.match(r'^[0-9\-]+$', value):
-            raise serializers.ValidationError(_("The role field can only contain lowercase letters and underscores. Ex: can_add_all."))
-        return value
+    # def validate_role_name(self, value):
+    #     """
+    #     Validates role name.
+    #     """
+    #     if not value:
+    #         raise serializers.ValidationError(_("role name cannot be empty"))
+    #     if Role.objects.filter(role_name=value).exists():
+    #         raise serializers.ValidationError(_("role with this name already exist"))
+    #     if not re.match(r'^[0-9\-]+$', value):
+    #         raise serializers.ValidationError(_("The role field can only contain lowercase letters and underscores. Ex: can_add_all."))
+    #     return value
     
     def validate_display_name(self, value):
         """
@@ -265,7 +296,35 @@ class RoleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(_("display name cannot be empty"))
         if Role.objects.filter(display_name=value).exists():
             raise serializers.ValidationError(_("role with this display name already exist"))
+        if not re.match(r'^[^_.]+$', value):
+            raise serializers.ValidationError(_("the display name must not contain underscores (_) or dots (.),"))
         return value
+    
+    def create(self, validated_data):
+
+        # Generate a random reset token
+        validated_data['role_name'] = validated_data['display_name'].replace(" ", "_").lower()
+
+        if Role.objects.filter(role_name=validated_data['role_name']).exists():
+            raise serializers.ValidationError(_("role with this name already exist"))
+
+        role = Role(**validated_data)
+        
+        role.save()
+        return role
+    
+    def update(self, instance, validated_data):
+        if 'display_name' in validated_data:
+            validated_data['role_name'] = validated_data['display_name'].replace(" ", "_").lower()
+        
+        # Update instance fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Save the instance
+        instance.save()
+        return instance
+
 
 class ApplicationSerializer(serializers.ModelSerializer):
     """
@@ -473,6 +532,79 @@ class AssignPermissionToRoleSerializer(serializers.ModelSerializer):
             "last_name": obj.assigned_by.last_name,
             "phone": obj.assigned_by.phone
         } if obj.assigned_by else None
+    
+
+class AssignPermissionsToRoleSerializer(serializers.Serializer):
+    role_id = serializers.UUIDField(required=True, format='hex_verbose', help_text="UUID's role.")
+    permission_ids = serializers.ListField(
+        child=serializers.UUIDField(format='hex_verbose'),
+        required=True,
+        allow_empty=False,
+        help_text="List of permissions IDs to associate with the role."
+    )
+
+    def validate(self, data):
+        role_id = data.get('role_id')
+
+        role_instance = Role.objects.get(id=role_id)
+
+        if not Role.objects.filter(id=role_id).exists():
+            raise serializers.ValidationError({"role_id": "The specified role does not exist."})
+
+        # Check that all permissions exist
+        permission_ids = data.get('permission_ids', [])
+        
+        invalid_permissions = [
+            perm_id for perm_id in permission_ids if not Permission.objects.filter(id=perm_id).exists()
+        ]
+
+        similars_assignment = []
+        
+        if invalid_permissions:
+            raise serializers.ValidationError({
+                "permission_ids": f"The following permission IDs are invalid : {invalid_permissions}"
+            })
+        
+        for perm_id in permission_ids:
+            permission_instance = Permission.objects.get(id=perm_id)
+            # Check if a similar assignment already exists
+            if AssignPermissionToRole.objects.filter(permission_id=permission_instance, role_id=role_instance).exists():
+                similars_assignment.append(AssignPermissionToRole(role_id=role_instance, permission_id=permission_instance).permission_id.id)
+        
+        if similars_assignment:
+            raise serializers.ValidationError({
+                f"permissions with this(se) id(s) ({similars_assignment}) is already assigned to this role"
+            })
+            
+
+        return data
+
+    def create(self, validated_data):
+
+        role_id = validated_data['role_id']
+        permission_ids = validated_data['permission_ids']
+
+        role_instance = Role.objects.get(id=role_id)
+
+        # Using a transaction to guarantee data integrity
+        with transaction.atomic():
+            associations = []
+            similars_assignment = []
+
+            for perm_id in permission_ids:
+                permission_instance = Permission.objects.get(id=perm_id)
+                # Check if a similar assignment already exists
+                if AssignPermissionToRole.objects.filter(permission_id=permission_instance, role_id=role_instance).exists():
+                    similars_assignment.append(AssignPermissionToRole(role_id=role_instance, permission_id=permission_instance))
+                
+                associations.append(AssignPermissionToRole(role_id=role_instance, permission_id=permission_instance))
+            
+            # if
+
+            # Creation in a single query
+            AssignPermissionToRole.objects.bulk_create(associations, ignore_conflicts=True)
+
+        return {"role_id": role_id, "permission_ids": permission_ids}
 
 
 # Serializer for AssignPermissionToApplication
@@ -543,12 +675,12 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def get_roles(self, obj):
         # Retrieve user-assigned roles
-        assigned_roles = AssignRoleToUser.objects.filter(user_id=obj).select_related('role_id')
+        assigned_roles = AssignRoleToUser.objects.filter(user_id=obj, role_id__is_active=True).select_related('role_id')
         return RoleWithPermissionsSerializer([role.role_id for role in assigned_roles], many=True).data
 
     def get_permissions(self, obj):
         # Retrieve permissions directly assigned to the user
-        assigned_permissions = AssignPermissionToUser.objects.filter(user_id=obj).select_related('permission_id')
+        assigned_permissions = AssignPermissionToUser.objects.filter(user_id=obj, permission_id__is_active=True).select_related('permission_id')
         return PermissionSerializer([perm.permission_id for perm in assigned_permissions], many=True).data
     
     def get_user_created_by(self, obj):
@@ -577,11 +709,11 @@ class RoleWithPermissionsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
-        fields = ['id', 'role_name', 'display_name', 'description', 'permissions']
+        fields = ['id', 'role_name', 'display_name', 'description', 'is_active', 'permissions']
 
     def get_permissions(self, obj):
         # Retrieve role permissions
-        role_permissions = AssignPermissionToRole.objects.filter(role_id=obj).select_related('permission_id')
+        role_permissions = AssignPermissionToRole.objects.filter(role_id=obj, permission_id__is_active=True).select_related('permission_id')
         return PermissionSerializer([perm.permission_id for perm in role_permissions], many=True).data
 
 class UserWithPermissionsSerializer(serializers.ModelSerializer):
@@ -593,7 +725,7 @@ class UserWithPermissionsSerializer(serializers.ModelSerializer):
 
     def get_permissions(self, obj):
         # Retrieve user permissions
-        role_permissions = AssignPermissionToUser.objects.filter(user_id=obj).select_related('permission_id')
+        role_permissions = AssignPermissionToUser.objects.filter(user_id=obj, permission_id__is_active=True).select_related('permission_id')
         return PermissionSerializer([perm.permission_id for perm in role_permissions], many=True).data
 
 class UserWithRolesSerializer(serializers.ModelSerializer):
@@ -605,7 +737,7 @@ class UserWithRolesSerializer(serializers.ModelSerializer):
 
     def get_roles(self, obj):
         # Retrieve user_assigned roles
-        assigned_roles = AssignRoleToUser.objects.filter(user_id=obj).select_related('role_id')
+        assigned_roles = AssignRoleToUser.objects.filter(user_id=obj, role_id__is_active=True).select_related('role_id')
         return RoleWithPermissionsSerializer([role.role_id for role in assigned_roles], many=True).data
     
 class ApplicationWithPermissionSerializer(serializers.ModelSerializer):
@@ -617,5 +749,5 @@ class ApplicationWithPermissionSerializer(serializers.ModelSerializer):
 
     def get_permissions(self, obj):
         # Retrieve user permissions
-        role_permissions = AssignPermissionApplication.objects.filter(application_id=obj).select_related('permission_id')
+        role_permissions = AssignPermissionApplication.objects.filter(application_id=obj, permission_id__is_active=True).select_related('permission_id')
         return PermissionSerializer([perm.permission_id for perm in role_permissions], many=True).data

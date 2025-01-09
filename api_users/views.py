@@ -20,7 +20,8 @@ from .serializers import (
     UserDetailSerializer,
     UserWithPermissionsSerializer,
     UserWithRolesSerializer,
-    ApplicationWithPermissionSerializer )
+    ApplicationWithPermissionSerializer,
+    AssignPermissionsToRoleSerializer )
 
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
@@ -112,7 +113,7 @@ class UserView(APIView):
             paginated_queryset = paginator.paginate_queryset(instances, request)
 
             # Serialize the paginated data
-            serializer = UserSerializer(paginated_queryset, many=True)
+            serializer = UserDetailSerializer(paginated_queryset, many=True)
             paginated_response = paginator.get_paginated_response(serializer.data)
 
             return Response(
@@ -202,11 +203,11 @@ class UserView(APIView):
             if serializer.is_valid():
                 serializer.save(is_active=False)
                 return Response({"success": True, "message": "Instance deactivated successfully."}, status=status.HTTP_200_OK)
-        elif request.user.is_admin or request.user.is_superuser:
-            instance.delete()
-            return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
-        else:
-            return Response({"success": False, "error": "Only admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+        # elif request.user.is_admin or request.user.is_superuser:
+        #     instance.delete()
+        #     return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        # else:
+        #     return Response({"success": False, "error": "Only admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
 
 class SetPasswordAPIView(APIView):
@@ -228,7 +229,7 @@ class SetPasswordAPIView(APIView):
 
         user = CustomUser.objects.filter(reset_token=token).first()
 
-        if not user or user.reset_token_expire < now():
+        if not (user and user.reset_token_expire < now()):
             return Response({"success": False, "error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the password and activate the user
@@ -263,6 +264,9 @@ class EmailToResetPasswordAPIView(APIView):
         token_expiry = now() + timedelta(hours=24)
 
         user = CustomUser.objects.filter(email=email).first()
+
+        if not user:
+            return Response({"success": False, "error": "user with this email was not found or invalid email"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Construct the reset URL 
         reset_url = f"{'http://localhost:5173/confirmPassword/'}?token={reset_token}"
@@ -351,7 +355,7 @@ class SearchUserView(APIView):
         if username:
             filters &= Q(username__icontains=username)
         if is_active:
-            filters &= Q(username__icontains=is_active)
+            filters &= Q(is_active__icontains=is_active)
 
         paginator = SizePagination()
         users = CustomUser.objects.filter(filters)
@@ -394,7 +398,10 @@ class PermissionAPIView(APIView):
             return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         
         elif request.user.is_superuser or request.user.is_admin:
-            instances = Permission.objects.filter(is_active=True)
+            if request.user.is_superuser:
+                instances = Permission.objects.filter()
+            else:
+                instances = Permission.objects.filter(is_active=True)
             
             # Check permission
             # if not (request.user.is_superuser or request.user.is_admin):
@@ -491,7 +498,7 @@ class PermissionAPIView(APIView):
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Permisison deactivated successfully."}, status=status.HTTP_200_OK)
 
 class RoleAPIView(APIView):
     """
@@ -516,7 +523,10 @@ class RoleAPIView(APIView):
             return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         
         elif request.user.is_superuser or request.user.is_admin:
-            instances = Role.objects.filter(is_active=True)
+            if request.user.is_superuser:
+                instances = Role.objects.filter()
+            else:
+                instances = Role.objects.filter(is_active=True)
             
             # Check permission
             # if not (request.user.is_superuser or request.user.is_admin):
@@ -615,7 +625,7 @@ class RoleAPIView(APIView):
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Role deactivated successfully."}, status=status.HTTP_200_OK)
 
 class ApplicationAPIView(APIView):
     """
@@ -639,7 +649,10 @@ class ApplicationAPIView(APIView):
             serializer = ApplicationWithPermissionSerializer(instance)
             return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         else:
-            instances = Application.objects.filter(is_active=True)
+            if request.user.is_superuser:
+                instances = Application.objects.filter()
+            else:
+                instances = Application.objects.filter(is_active=True)
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
@@ -712,7 +725,7 @@ class ApplicationAPIView(APIView):
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Application deactivated successfully."}, status=status.HTTP_200_OK)
 
 # API View for AssignPermissionToUser
 class AssignPermissionToUserAPIView(APIView):
@@ -891,6 +904,28 @@ class AssignPermissionToRoleAPIView(APIView):
         instance.delete()
 
         return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+    
+# API View for AssignPermissionsToRole
+class AssignPermissionsToRoleAPIView(APIView):
+    """
+    API endpoint to assign mutiple permissions to a role.
+    Accepts POST requests with data corresponding to the AssignPermissionToRole model.
+    """
+
+    permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+    
+    def post(self, request):
+        serializer = AssignPermissionsToRoleSerializer(data=request.data)
+
+        # Check permission
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
+        
+        if serializer.is_valid():
+            serializer.save(assigned_by=request.user)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
 # API View for AssignPermissionToApplication
 class AssignPermissionToApplicationAPIView(APIView):

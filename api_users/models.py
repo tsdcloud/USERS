@@ -86,7 +86,7 @@ class CustomUser(AbstractUser):
     first_name = models.CharField(_("first name"), max_length=100)
     last_name = models.CharField(_("last name"), max_length=100, blank=True)
     phone = models.CharField(_("phone"), max_length=50, blank=True, null=True)
-    is_active = models.BooleanField(_("active"), default=True)
+    is_active = models.BooleanField(_("active"), default=False)
     is_staff = models.BooleanField(_("staff status"), default=False)
     is_admin = models.BooleanField(_("admin status"), default=False)
     is_superuser = models.BooleanField(default=False)
@@ -154,12 +154,14 @@ class Role(models.Model):
         date_updated (DateTimeField): Timestamp of the last update to the role.
         created_by (ForeignKey): References the user who created the role.
         updated_by (ForeignKey): References the user who last updated the role.
+        display_name
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role_name = models.CharField(
         max_length=100,
         unique=True,
-        help_text="Unique name of the role, allowing only alphanumeric characters, dashes, and underscores."
+        help_text="Unique name of the role, allowing only alphanumeric characters, dashes, and underscores.",
+        default="role_name"
     )
     display_name = models.CharField(
         max_length=100,
@@ -221,6 +223,7 @@ class Permission(models.Model):
         id (AutoField): Primary key, a unique integer identifier for each permission.
         permission_name (CharField): A unique, human-readable name for the permission.
         is_active (BooleanField): Indicates whether the permission is active (True) or inactive (False).
+        display_name
         description (TextField): A brief description of the permission's purpose and scope.
         date_created (DateTimeField): Timestamp when the permission was created.
         date_updated (DateTimeField): Timestamp when the permission was last updated.
@@ -231,7 +234,8 @@ class Permission(models.Model):
     permission_name = models.CharField(
         max_length=100,
         unique=True,
-        help_text="Unique name for the permission, allowing only alphanumeric characters, dashes, and underscores."
+        help_text="Unique name for the permission, allowing only alphanumeric characters, dashes, and underscores.",
+        default="perm_name"
     )
     display_name = models.CharField(
         max_length=100,

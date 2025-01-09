@@ -42,3 +42,4 @@ urlpatterns = [
 
     path('gateway/api/', include('api_users.urls')),
 ]
+
