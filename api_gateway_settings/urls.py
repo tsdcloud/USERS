@@ -38,7 +38,7 @@ urlpatterns = [
     path('gateway/user_info/', UserInfoView.as_view(), name='optain_user_info'), 
     path('gateway/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  
     path('gateway/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
-    path('gateway/token/logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
+    path('gateway/logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
 
     path('gateway/api/', include('api_users.urls')),
 ]
