@@ -395,7 +395,9 @@ class AssignPermissionToUserSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # Check if a similar assignment already exists
         if AssignPermissionToUser.objects.filter(user_id=data['user_id'], permission_id=data['permission_id']).exists():
-            raise serializers.ValidationError("This permission is already assigned to this user.")
+            perm = AssignPermissionToUser.objects.filter(permission_id=data['permission_id'], user_id=data['user_id']).first().permission_id.permission_name
+            raise serializers.ValidationError(f"This permission '{perm}' is already assigned to this user.")
+            # raise serializers.ValidationError("This permission is already assigned to this user.")
         return data
     
     def get_user(self, obj):
@@ -449,7 +451,9 @@ class AssignRoleToUserSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # Check if a similar assignment already exists
         if AssignRoleToUser.objects.filter(user_id=data['user_id'], role_id=data['role_id']).exists():
-            raise serializers.ValidationError("This role is already assigned to this user.")
+            role = AssignRoleToUser.objects.filter(role_id=data['role_id'], user_id=data['user_id']).first().role_id.role_name
+            raise serializers.ValidationError(f"This role '{role}' is already assigned to this user.")
+            # raise serializers.ValidationError("This role is already assigned to this user.")
         return data
     
     def get_user(self, obj):
@@ -504,6 +508,8 @@ class AssignPermissionToRoleSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # Check if a similar assignment already exists
         if AssignPermissionToRole.objects.filter(permission_id=data['permission_id'], role_id=data['role_id']).exists():
+            # perm = AssignPermissionToRole.objects.filter(permission_id=data['permission_id'], role_id=data['role_id']).first().permission_id.permission_name
+            # raise serializers.ValidationError(f"This permission '{perm}' is already assigned to this role.")
             raise serializers.ValidationError("This permission is already assigned to this role.")
         return data
     
@@ -569,12 +575,14 @@ class AssignPermissionsToRoleSerializer(serializers.Serializer):
             permission_instance = Permission.objects.get(id=perm_id)
             # Check if a similar assignment already exists
             if AssignPermissionToRole.objects.filter(permission_id=permission_instance, role_id=role_instance).exists():
-                similars_assignment.append(AssignPermissionToRole(role_id=role_instance, permission_id=permission_instance).permission_id.id)
+                similars_assignment.append(AssignPermissionToRole.objects.filter(role_id=role_instance, permission_id=permission_instance).first().permission_id.permission_name)
+            
+            # perm = AssignPermissionToRole.objects.filter(permission_id=data['permission_id'], role_id=data['role_id']).first().permission_id.permission_name
+            # raise serializers.ValidationError(f"This permission '{perm}' is already assigned to this role.")
         
         if similars_assignment:
-            raise serializers.ValidationError({
-                f"permissions with this(se) id(s) ({similars_assignment}) is already assigned to this role"
-            })
+            permissions_str = ", ".join(similars_assignment)
+            raise serializers.ValidationError(f"The following permissions: {permissions_str}, are already assigned to this role.")
             
 
         return data
@@ -629,14 +637,17 @@ class AssignPermissionToApplicationSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # Check if a similar assignment already exists
         if AssignPermissionApplication.objects.filter(permission_id=data['permission_id'], application_id=data['application_id']).exists():
-            raise serializers.ValidationError("This permission is already assigned to an this application.")
+            perm = AssignPermissionApplication.objects.get(permission_id=data['permission_id'], application_id=data['application_id']).permission_id.permission_name
+            raise serializers.ValidationError(f"This permission '{perm}' is already assigned to an this application.")
+            # raise serializers.ValidationError(f"This permission is already assigned to this application.")
         return data
 
     def get_permission(self, obj):
         return {
             "id": obj.permission_id.id,
             "permission_name": obj.permission_id.permission_name,
-            "description": obj.permission_id.description
+            "description": obj.permission_id.description,
+            "display_name": obj.permission_id.display_name
         }
 
     def get_app(self, obj):
@@ -745,7 +756,7 @@ class ApplicationWithPermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Application
-        fields = ['id', 'application_name', 'description', 'permissions']
+        fields = ['id', 'application_name', 'description', 'url', 'is_active', 'permissions']
 
     def get_permissions(self, obj):
         # Retrieve user permissions

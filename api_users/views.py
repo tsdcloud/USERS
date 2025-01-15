@@ -138,7 +138,7 @@ class UserView(APIView):
 
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response({"success": False, "data": serializer.data}, status=status.HTTP_200_OK)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
 
@@ -203,11 +203,13 @@ class UserView(APIView):
             if serializer.is_valid():
                 serializer.save(is_active=False)
                 return Response({"success": True, "message": "Instance deactivated successfully."}, status=status.HTTP_200_OK)
-        # elif request.user.is_admin or request.user.is_superuser:
-        #     instance.delete()
-        #     return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
-        # else:
-        #     return Response({"success": False, "error": "Only admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+        elif request.user.is_admin or request.user.is_superuser:
+            if serializer.is_valid():
+                serializer.save(is_active=False)
+            # instance.delete()
+                return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"success": False, "error": "Only admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
 
 class SetPasswordAPIView(APIView):

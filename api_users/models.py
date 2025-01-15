@@ -136,6 +136,9 @@ class CustomUser(AbstractUser):
         Saves the user instance
         """
         super().save(*args, **kwargs)
+    
+    class Meta:
+        ordering = ['id']
 
 
 # --- Role Model ---
