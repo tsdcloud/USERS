@@ -134,7 +134,7 @@ class UserView(APIView):
         # Check permission
         self.check_object_permissions(request, instance)
         
-        serializer = UserSerializer(instance, data=request.data, partial=True)
+        serializer = UserSerializer(instance, data=request.data, partial=True, context={'request': request})
 
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
@@ -231,7 +231,10 @@ class SetPasswordAPIView(APIView):
 
         user = CustomUser.objects.filter(reset_token=token).first()
 
-        if not (user and user.reset_token_expire < now()):
+        if not user:
+            return Response({"success": False, "error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.reset_token_expire < now():
             return Response({"success": False, "error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the password and activate the user

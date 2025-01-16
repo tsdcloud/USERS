@@ -63,8 +63,10 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(_("Email cannot be empty"))
         if not re.match(email_regex, value):
             raise serializers.ValidationError(_("The email address contains invalid characters. Only letters, numbers, and '@', '_', '-', '.' are allowed."))
-        if CustomUser.objects.filter(email=value).exists():
-            raise serializers.ValidationError(_("Email is already taken"))
+        # Ignore uniqueness validation for PATCH requests
+        if self.context.get('request', None) and self.context['request'].method != "PATCH":
+            if CustomUser.objects.filter(email=value).exists():
+                raise serializers.ValidationError(_("Email is already taken"))
         return value
 
     def validate_username(self, value):
@@ -75,8 +77,10 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(_("Username cannot be empty"))
         if not re.match(r'^[A-Za-z0-9._]+$', value):
             raise serializers.ValidationError(_("Username can only contain letters, numbers, dots (.) and underscores (_)"))
-        if CustomUser.objects.filter(username=value).exists():
-            raise serializers.ValidationError(_("Username is already taken"))
+        # Ignore uniqueness validation for PATCH requests
+        if self.context.get('request', None) and self.context['request'].method != "PATCH":
+            if CustomUser.objects.filter(username=value).exists():
+                raise serializers.ValidationError(_("Username is already taken"))
         return value
 
     def validate_first_name(self, value):
@@ -396,7 +400,8 @@ class AssignPermissionToUserSerializer(serializers.ModelSerializer):
         # Check if a similar assignment already exists
         if AssignPermissionToUser.objects.filter(user_id=data['user_id'], permission_id=data['permission_id']).exists():
             perm = AssignPermissionToUser.objects.filter(permission_id=data['permission_id'], user_id=data['user_id']).first().permission_id.permission_name
-            raise serializers.ValidationError(f"This permission '{perm}' is already assigned to this user.")
+            user = AssignPermissionToUser.objects.filter(permission_id=data['permission_id'], user_id=data['user_id']).first().user_id.first_name
+            raise serializers.ValidationError(f"This permission '{perm}' is already assigned to this user '{user}'.")
             # raise serializers.ValidationError("This permission is already assigned to this user.")
         return data
     
@@ -452,7 +457,8 @@ class AssignRoleToUserSerializer(serializers.ModelSerializer):
         # Check if a similar assignment already exists
         if AssignRoleToUser.objects.filter(user_id=data['user_id'], role_id=data['role_id']).exists():
             role = AssignRoleToUser.objects.filter(role_id=data['role_id'], user_id=data['user_id']).first().role_id.role_name
-            raise serializers.ValidationError(f"This role '{role}' is already assigned to this user.")
+            user = AssignRoleToUser.objects.filter(role_id=data['role_id'], user_id=data['user_id']).first().user_id.first_name
+            raise serializers.ValidationError(f"This role '{role}' is already assigned to this user '{user}'.")
             # raise serializers.ValidationError("This role is already assigned to this user.")
         return data
     
@@ -638,7 +644,8 @@ class AssignPermissionToApplicationSerializer(serializers.ModelSerializer):
         # Check if a similar assignment already exists
         if AssignPermissionApplication.objects.filter(permission_id=data['permission_id'], application_id=data['application_id']).exists():
             perm = AssignPermissionApplication.objects.get(permission_id=data['permission_id'], application_id=data['application_id']).permission_id.permission_name
-            raise serializers.ValidationError(f"This permission '{perm}' is already assigned to an this application.")
+            app = AssignPermissionApplication.objects.get(permission_id=data['permission_id'], application_id=data['application_id']).application_id.application_name
+            raise serializers.ValidationError(f"This permission '{perm}' is already assigned to an this application '{app}'.")
             # raise serializers.ValidationError(f"This permission is already assigned to this application.")
         return data
 

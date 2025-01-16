@@ -138,7 +138,7 @@ class CustomUser(AbstractUser):
         super().save(*args, **kwargs)
     
     class Meta:
-        ordering = ['id']
+        ordering = ['-date_joined']
 
 
 # --- Role Model ---
@@ -211,7 +211,7 @@ class Role(models.Model):
     class Meta:
         verbose_name = "Role"
         verbose_name_plural = "Roles"
-        ordering = ['date_created']
+        ordering = ['-date_created']
 
 
 
@@ -285,7 +285,7 @@ class Permission(models.Model):
     class Meta:
         verbose_name = "Permission"
         verbose_name_plural = "Permissions"
-        ordering = ['date_created']
+        ordering = ['-date_created']
 
 
 # --- Application Model ---
@@ -365,7 +365,7 @@ class Application(models.Model):
     class Meta:
         verbose_name = "Application"
         verbose_name_plural = "Applications"
-        ordering = ['date_created']
+        ordering = ['-date_created']
 
 # --- Assign Permission to Users ---
 class AssignPermissionToUser(models.Model):
