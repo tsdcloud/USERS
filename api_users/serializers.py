@@ -22,16 +22,28 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Serializer for the User model, used for creating and updating users.
     """
+    roles = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
 
     user_created_by = serializers.SerializerMethodField()
     user_updated_by = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone', 'is_staff', 'is_active', 'is_admin', 'is_superuser', 'user_created_by', 'user_updated_by']
+        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone', 'is_staff', 'is_active', 'is_admin', 'is_superuser', 'user_created_by', 'user_updated_by', 'roles', 'permissions']
         extra_kwargs = {
             'password': {'write_only': True},
         }
+    
+    def get_roles(self, obj):
+        # Retrieve user-assigned roles
+        assigned_roles = AssignRoleToUser.objects.filter(user_id=obj, role_id__is_active=True).select_related('role_id')
+        return RoleWithPermissionsSerializer([role.role_id for role in assigned_roles], many=True).data
+
+    def get_permissions(self, obj):
+        # Retrieve permissions directly assigned to the user
+        assigned_permissions = AssignPermissionToUser.objects.filter(user_id=obj, permission_id__is_active=True).select_related('permission_id')
+        return PermissionSerializer([perm.permission_id for perm in assigned_permissions], many=True).data
     
     def get_user_created_by(self, obj):
         return {
@@ -340,9 +352,11 @@ class ApplicationSerializer(serializers.ModelSerializer):
     app_created_by = serializers.SerializerMethodField()
     app_updated_by = serializers.SerializerMethodField()
 
+    permissions = serializers.SerializerMethodField()
+
     class Meta:
         model = Application
-        fields = ['id', 'application_name', 'description', 'url', 'app_created_by', 'app_updated_by', 'is_active']
+        fields = ['id', 'application_name', 'description', 'url', 'app_created_by', 'app_updated_by', 'is_active', 'permissions']
         read_only_fields = ['created_by', 'date_created']
     
     def get_app_created_by(self, obj):
@@ -375,6 +389,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
         if Permission.objects.filter(permission_name=value).exists():
             raise serializers.ValidationError(_("application with this name already exist"))
         return value
+    
+    def get_permissions(self, obj):
+        # Retrieve user permissions
+        role_permissions = AssignPermissionApplication.objects.filter(application_id=obj, permission_id__is_active=True).select_related('permission_id')
+        return PermissionSerializer([perm.permission_id for perm in role_permissions], many=True).data
+
 
 
 # Serializer for AssignPermissionToUser
