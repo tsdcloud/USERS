@@ -179,12 +179,13 @@ SIMPLE_JWT = {
 # Configure SMTP 
 
 EMAIL_HOST = 'smtp.office365.com'
-EMAIL_HOST_USER = 'tsd@bfclimited.com'
-EMAIL_HOST_PASSWORD ='dpws@2023'
+EMAIL_HOST_USER = 'sngnetchedjeu@bfclimited.com'
+EMAIL_HOST_PASSWORD ='Lamachette_&'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 300
-DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
+DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
+# DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.office365.com'

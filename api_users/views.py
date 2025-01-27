@@ -281,7 +281,7 @@ class EmailToResetPasswordAPIView(APIView):
         send_mail(
             "Set Your Password",
             f"Hi {user.first_name},\nPlease click the link below to reset your password:\n{reset_url}",
-            "tsd@bfclimited.com",
+            "sngnetchedjeu@bfclimited.com",
             [email],
             fail_silently=False,
             html_message=f"""
