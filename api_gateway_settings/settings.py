@@ -178,9 +178,10 @@ SIMPLE_JWT = {
 
 # Configure SMTP 
 
-EMAIL_HOST = 'smtp.office365.com'
-EMAIL_HOST_USER = 'sngnetchedjeu@bfclimited.com'
-EMAIL_HOST_PASSWORD ='Lamachette_&'
+# EMAIL_HOST = 'smtp.office365.com'
+EMAIL_HOST = 'mail74.lwspanel.com'
+EMAIL_HOST_USER = 'no-reply@bfcgroupsa.com'
+EMAIL_HOST_PASSWORD ='gJ3*xY$UpCerV6P'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 300

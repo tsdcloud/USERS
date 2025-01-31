@@ -150,7 +150,7 @@ class UserSerializer(serializers.ModelSerializer):
             send_mail(
                 subject="Set Your Password",
                 message=f"Hi {first_name},\nPlease click the link below to set your password:\n{reset_url}",
-                from_email="tsd@bfclimited.com",
+                from_email="no-reply@bfcgroupsa.com",
                 recipient_list=[email],
                 fail_silently=False,
                 html_message=f"""

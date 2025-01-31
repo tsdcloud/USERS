@@ -262,6 +262,9 @@ class EmailToResetPasswordAPIView(APIView):
         data = request.data
         email = data.get("email")
 
+        if not email:
+            return Response({"success" : False, "error": "E-mail is required !!"}, status=status.HTTP_400_BAD_REQUEST)
+
         # print(request.user.email)
 
         # Create a token to use to reset the password
@@ -281,7 +284,7 @@ class EmailToResetPasswordAPIView(APIView):
         send_mail(
             "Set Your Password",
             f"Hi {user.first_name},\nPlease click the link below to reset your password:\n{reset_url}",
-            "sngnetchedjeu@bfclimited.com",
+            "no-reply@bfcgroupsa.com",
             [email],
             fail_silently=False,
             html_message=f"""
