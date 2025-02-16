@@ -50,10 +50,14 @@ class JWTUserMiddleware(MiddlewareMixin):
         if not auth_header:
             request.user = AnonymousUser()
             return
+            # return JsonResponse(
+            #     {"success": False, "error": "Authentication credentials were not provided."},
+            #     status=status.HTTP_401_UNAUTHORIZED
+            # )
 
         if not auth_header.startswith('Bearer '):
             return JsonResponse(
-                {"error": "Invalid token format. Expected 'Bearer <token>'."},
+                {"success": False, "error": "Invalid token format. Expected 'Bearer <token>'."},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -86,7 +90,7 @@ class JWTUserMiddleware(MiddlewareMixin):
                     outstanding_token = OutstandingToken.objects.filter(jti=jti).first()
                     if not outstanding_token:
                         return JsonResponse(
-                            {"error": "Token does not exist in the database."},
+                            {"success": False, "error": "Token does not exist in the database."},
                             status=status.HTTP_401_UNAUTHORIZED
                         )
 
@@ -94,7 +98,7 @@ class JWTUserMiddleware(MiddlewareMixin):
                     if BlacklistedToken.objects.filter(token=outstanding_token).exists():
                         return JsonResponse(
                             # {"error": "Token provided is blacklisted."},
-                            {"error": "your token has been blacklisted due to a new connection, continue where you were last connected, if this is not you, contact your administrator"},
+                            {"success": False, "error": "your token has been blacklisted due to a new connection, continue where you were last connected, if this is not you, contact your administrator"},
                             status=status.HTTP_401_UNAUTHORIZED
                         )
             except UserTokenBlacklisted.DoesNotExist:
@@ -108,7 +112,7 @@ class JWTUserMiddleware(MiddlewareMixin):
 
         except (InvalidToken, TokenError):
             return JsonResponse(
-                {"error": "Invalid or expired token."},
+                {"success": False, "error": "Invalid or expired token."},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 

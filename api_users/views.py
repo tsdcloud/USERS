@@ -17,7 +17,11 @@ from .serializers import (
     AssignRoleToUserSerializer, 
     AssignPermissionToRoleSerializer, 
     AssignPermissionToApplicationSerializer, 
-    UserDetailSerializer )
+    UserDetailSerializer,
+    UserWithPermissionsSerializer,
+    UserWithRolesSerializer,
+    ApplicationWithPermissionSerializer,
+    AssignPermissionsToRoleSerializer )
 
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
@@ -34,6 +38,7 @@ from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 
 from rest_framework import permissions
+from rest_framework.permissions import BasePermission
 
 
 class SizePagination(PageNumberPagination):
@@ -41,7 +46,13 @@ class SizePagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 1000
 
-
+class IsAdminOrSuperAdmin(BasePermission):
+    """
+    Custom permission to authorize only admin or superadmin users.
+    """
+    def has_permission(self, request, view):
+        return request.user.is_admin or request.user.is_superuser
+    
 class IsOwnerOrAdmin(permissions.BasePermission):
     """
     Personalized permissions that allow access only if the user
@@ -50,7 +61,7 @@ class IsOwnerOrAdmin(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         # Check if the user is an administrator or super administrator or admin
-        if request.user.is_superuser or request.user.is_staff or request.user.is_admin:
+        if request.user.is_superuser or request.user.is_admin:
             return True
         
         # Check if the user is the owner of the object
@@ -74,28 +85,44 @@ class UserView(APIView):
         """
         if pk:
             # instance = get_object_or_404(CustomUser.objects.filter(is_active=True), pk=pk)
-            if request.user.is_superuser == True or request.user.is_admin == True:
-                instance = get_object_or_404(CustomUser, pk=pk)
+            # if request.user.is_superuser == True or request.user.is_admin == True:
+            instance = get_object_or_404(CustomUser, pk=pk)
 
             # Check permission
             self.check_object_permissions(request, instance)
 
             serializer = UserDetailSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"success": True, "data":serializer.data}, status=status.HTTP_200_OK)
         else:
             # instances = CustomUser.objects.filter(is_active=True)
             if request.user.is_superuser == True:
                 instances = CustomUser.objects.all()
             elif request.user.is_admin == True:
                 instances = CustomUser.objects.filter(is_active=True)
+            else:
+                return Response(
+                    {"success": False, "error": "You do not have permission to view this data."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
                 
             # Check permission
-            self.check_object_permissions(request, instances)
+            # self.check_object_permissions(request, instances)
 
+            # Paginate the queryset
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
-            serializer = UserSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+
+            # Serialize the paginated data
+            serializer = UserDetailSerializer(paginated_queryset, many=True)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+
+            return Response(
+                {
+                    "success": True,
+                    "data": paginated_response.data,
+                },
+                status=status.HTTP_200_OK
+            )
         
     
     def patch(self, request, pk):
@@ -107,12 +134,12 @@ class UserView(APIView):
         # Check permission
         self.check_object_permissions(request, instance)
         
-        serializer = UserSerializer(instance, data=request.data, partial=True)
+        serializer = UserSerializer(instance, data=request.data, partial=True, context={'request': request})
 
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
 
     def put(self, request, pk):
@@ -128,72 +155,35 @@ class UserView(APIView):
         
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"success": True, "data" :serializer.data}, status=status.HTTP_200_OK)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
 
     def post(self, request):
-        data = request.data
-        first_name = data.get("first_name")
-        username = data.get("username")
-        last_name = data.get("last_name")
-        email = data.get("email")
-        phone = data.get("phone")
 
-        random_password = generate_random_chain(12)
-        hashed_password = make_password(random_password)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
+        serialiser = UserSerializer(data=request.data)
 
-        if not last_name : last_name = ""
-
-        if not phone : phone = ""
-
-        if not first_name or not email:
-            return Response({"error": "First name and email are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if CustomUser.objects.filter(email=email).exists():
-            return Response({"error": "Email is already in use."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Create a user with a reset token
-        reset_token = str(uuid.uuid4())
-        token_expiry = now() + timedelta(hours=24)
-
-        user = CustomUser.objects.create(
-            first_name=first_name,
-            email=email,
-            reset_token=reset_token,
-            reset_token_expire=token_expiry,
-            username=username,
-            last_name = last_name,
-            is_active=False,
-            phone=phone,
-            password=hashed_password,
-            created_by=request.user,
-        )
-
-        # Construct the reset URL
-        reset_url = f"{'http://localhost:5173/confirmPassword/'}?token={reset_token}"
-
-        # Send email with the reset link
-        send_mail(
-            "Set Your Password",
-            f"Hi {first_name},\nPlease click the link below to set your password:\n{reset_url}",
-            "tsd@bfclimited.com",
-            [email],
-            fail_silently=False,
-            html_message=f"""
-                <p>Hi {first_name},</p>
-                <p>Please click the link below to set your password:</p>
-                <a href="{reset_url}">Set Your Password</a>
-            """
-        )
-
-        serialiser = UserSerializer(user)
-        return Response({"success": serialiser.data}, status=status.HTTP_201_CREATED)
+        if serialiser.is_valid():
+            serialiser.save(created_by=request.user, updated_by=request.user, is_active=False)
+            return Response(
+                {
+                    "success": True,
+                    "data": serialiser.data
+                }, 
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "errors": serialiser.errors
+                }, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     def delete(self, request, pk):
         """
@@ -212,12 +202,14 @@ class UserView(APIView):
         if not delete :
             if serializer.is_valid():
                 serializer.save(is_active=False)
-        elif request.user.is_staff or request.user.is_superuser:
-            instance.delete()
+                return Response({"success": True, "message": "Instance deactivated successfully."}, status=status.HTTP_200_OK)
+        elif request.user.is_admin or request.user.is_superuser:
+            if serializer.is_valid():
+                serializer.save(is_active=False)
+            # instance.delete()
+                return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
         else:
-            return Response({"error": "Only admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
-
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+            return Response({"success": False, "error": "Only admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
 
 class SetPasswordAPIView(APIView):
@@ -225,32 +217,39 @@ class SetPasswordAPIView(APIView):
     API View to handle password setting using a reset token.
     """
 
-    def post(self, request):
+    def patch(self, request, *args, **kwargs):
         data = request.data
         token = request.query_params.get('token')
         password = data.get("password")
         confirm_password = data.get("confirm_password")
 
         if not token or not password or not confirm_password :
-            return Response({"error": "Token, password and confirm_password are required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "error": "Token, password and confirm_password are required."}, status=status.HTTP_400_BAD_REQUEST)
         
         if password != confirm_password :
-            return Response({"error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = CustomUser.objects.filter(reset_token=token).first()
 
-        if not user or user.reset_token_expire < now():
-            return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        if not user:
+            return Response({"success": False, "error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.reset_token_expire < now():
+            return Response({"success": False, "error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the password and activate the user
-        validate_password(password)
+        password_errors = validate_password(password)
+
+        if password_errors:
+            return Response({"success": False, 'errors': password_errors}, status=status.HTTP_400_BAD_REQUEST)
+        
         user.password = make_password(password)
         user.reset_token = None
         user.reset_token_expire = None
         user.is_active = True
         user.save()
 
-        return Response({"message": "Password set successfully. You can now log in."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Password set successfully. You can now log in."}, status=status.HTTP_200_OK)
 
 class EmailToResetPasswordAPIView(APIView):
     """
@@ -263,6 +262,9 @@ class EmailToResetPasswordAPIView(APIView):
         data = request.data
         email = data.get("email")
 
+        if not email:
+            return Response({"success" : False, "error": "E-mail is required !!"}, status=status.HTTP_400_BAD_REQUEST)
+
         # print(request.user.email)
 
         # Create a token to use to reset the password
@@ -271,8 +273,8 @@ class EmailToResetPasswordAPIView(APIView):
 
         user = CustomUser.objects.filter(email=email).first()
 
-        # Check permission
-        self.check_object_permissions(request, user)
+        if not user:
+            return Response({"success": False, "error": "user with this email was not found or invalid email"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Construct the reset URL 
         reset_url = f"{'http://localhost:5173/confirmPassword/'}?token={reset_token}"
@@ -282,7 +284,7 @@ class EmailToResetPasswordAPIView(APIView):
         send_mail(
             "Set Your Password",
             f"Hi {user.first_name},\nPlease click the link below to reset your password:\n{reset_url}",
-            "tsd@bfclimited.com",
+            "no-reply@bfcgroupsa.com",
             [email],
             fail_silently=False,
             html_message=f"""
@@ -296,7 +298,7 @@ class EmailToResetPasswordAPIView(APIView):
         user.reset_token_expire = token_expiry
         user.save()
 
-        return Response({"success": "email sent succesfully, check your email and follow the instruction."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "email sent succesfully, check your email and follow the instruction."}, status=status.HTTP_200_OK)
 
 class ChangePasswordAPIView(APIView):
     """
@@ -305,7 +307,7 @@ class ChangePasswordAPIView(APIView):
 
     permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
 
-    def post(self, request):
+    def patch(self, request, *args, **kwargs):
         data = request.data
         password = data.get("password")
         confirm_password = data.get("confirm_password")
@@ -313,100 +315,23 @@ class ChangePasswordAPIView(APIView):
         email = request.user.email
 
         if not password or not confirm_password :
-            return Response({"error": "Password and confirm_password are required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "error": "Password and confirm_password are required."}, status=status.HTTP_400_BAD_REQUEST)
         
         if password != confirm_password :
-            return Response({"error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = CustomUser.objects.filter(email=email).first()
 
         # Set the password and activate the user
-        validate_password(password)
+        password_errors = validate_password(password)
+
+        if password_errors:
+            return Response({"success": False, 'errors': password_errors}, status=status.HTTP_400_BAD_REQUEST)
+        
         user.password = make_password(password)
         user.save()
 
-        return Response({"message": "Password change successfully."}, status=status.HTTP_200_OK)
-
-# class EmailToChangePasswordAPIView(APIView):
-#     """
-#     API View to get email to change password.
-#     """
-
-#     permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
-
-#     def post(self, request):
-
-#         email = request.user.email
-
-#         # print(request.user.email)
-
-#         # Create a token to use to reset the password
-#         reset_token = str(uuid.uuid4())
-#         token_expiry = now() + timedelta(hours=24)
-
-#         user = CustomUser.objects.filter(email=email).first()
-
-#         # Check permission
-#         self.check_object_permissions(request, user)
-
-#         # Construct the reset URL 
-#         reset_url = f"{'http://localhost:5173/confirmPassword/'}?token={reset_token}"
-#         # reset_url = f"{'http://127.0.0.1:8000/api_gateway/api/reset_password/'}?token={reset_token}"
-
-#         # Send email with the reset link
-#         send_mail(
-#             "Set Your Password",
-#             f"Hi {user.first_name},\nPlease click the link below to reset your password:\n{reset_url}",
-#             "tsd@bfclimited.com",
-#             [email],
-#             fail_silently=False,
-#             html_message=f"""
-#                 <p>Hi {user.first_name},</p>
-#                 <p>Please click the link below to reset your password:</p>
-#                 <a href="{reset_url}">Set Your Password</a>
-#             """
-#         )
-
-#         user.reset_token = reset_token
-#         user.reset_token_expire = token_expiry
-#         user.save()
-
-#         return Response({"success": "email sent succesfully, check your email and follow the instruction."}, status=status.HTTP_200_OK)
-
-# class ResetPasswordAPIView(APIView):
-#     """
-#     API View to reset password.
-#     """
-#     permission_classes = [IsOwnerOrAdmin, IsAuthenticated]
-
-#     def post(self, request):
-#         data = request.data
-#         token = request.query_params.get('token')
-#         password = data.get("password")
-#         confirm_password = data.get("confirm_password")
-
-#         if not token:
-#             return Response({"error": "Token are required."}, status=status.HTTP_400_BAD_REQUEST)
-        
-#         if password != confirm_password :
-#             return Response({"error": "the provided passwords are not equal !!"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         user = CustomUser.objects.filter(reset_token=token).first()
-
-#         # Check permission
-#         self.check_object_permissions(request, user)
-
-#         if not user or user.reset_token_expire < now():
-#             return Response({"error": "expired token."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Set the password and activate the user
-#         validate_password(password)
-#         user.password = make_password(password)
-#         user.reset_token = None
-#         user.reset_token_expire = None
-#         user.save()
-
-#         return Response({"message": "Password reset successfully. You can now log in."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Password changed successfully."}, status=status.HTTP_200_OK)
 
 class SearchUserView(APIView):
     """
@@ -416,6 +341,10 @@ class SearchUserView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
+
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         query_params = request.query_params
         first_name = query_params.get('first_name', None)
         last_name = query_params.get('last_name', None)
@@ -434,15 +363,24 @@ class SearchUserView(APIView):
         if username:
             filters &= Q(username__icontains=username)
         if is_active:
-            filters &= Q(username__icontains=is_active)
+            filters &= Q(is_active__icontains=is_active)
 
         paginator = SizePagination()
         users = CustomUser.objects.filter(filters)
+
         paginated_queryset = paginator.paginate_queryset(users, request)
         serializer = UserSerializer(paginated_queryset, many=True)
+        paginated_response = paginator.get_paginated_response(serializer.data)
 
         # Return list of users found
-        return paginator.get_paginated_response(serializer.data)
+        # return paginator.get_paginated_response(serializer.data)
+        return Response(
+            {
+                "success": True,
+                "data": paginated_response.data,
+            },
+            status=status.HTTP_200_OK
+        )
     
 
 class PermissionAPIView(APIView):
@@ -461,20 +399,47 @@ class PermissionAPIView(APIView):
             instance = get_object_or_404(Permission.objects.filter(is_active=True), pk=pk)
 
             # Check permission
-            self.check_object_permissions(request, instance)
+            if not (request.user.is_superuser or request.user.is_admin):
+                return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
             serializer = PermissionSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            instances = Permission.objects.filter(is_active=True)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        
+        elif request.user.is_superuser or request.user.is_admin:
+            if request.user.is_superuser:
+                instances = Permission.objects.filter()
+            else:
+                instances = Permission.objects.filter(is_active=True)
             
             # Check permission
-            self.check_object_permissions(request, instances)
+            # if not (request.user.is_superuser or request.user.is_admin):
+            #     return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
             serializer = PermissionSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+        
+            return Response({"success": True, "data": paginated_response.data}, status=status.HTTP_200_OK)
+        else:
+            try:
+                user = request.user
+                serializer = UserWithPermissionsSerializer(user)
+                return Response(
+                    {
+                        "success": True,
+                        "data": serializer.data
+                    },
+                    status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                return Response(
+                    {
+                        "success": False,
+                        "error": str(e)
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
     def post(self, request):
         """
@@ -483,15 +448,15 @@ class PermissionAPIView(APIView):
         serializer = PermissionSerializer(data=request.data)
 
         # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can create permissions."}, status=status.HTTP_403_FORBIDDEN)
         
         if serializer.is_valid():
             serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         # Save with the authenticated user as the creator
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         """
@@ -500,13 +465,14 @@ class PermissionAPIView(APIView):
         instance = get_object_or_404(Permission, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = PermissionSerializer(instance, data=request.data, partial=False)
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, pk):
         """
@@ -515,26 +481,32 @@ class PermissionAPIView(APIView):
         instance = get_object_or_404(Permission, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
 
         serializer = PermissionSerializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         """
         Handle DELETE requests for deleting an instance.
         """
         instance = get_object_or_404(Permission, pk=pk)
+
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = PermissionSerializer(instance, data=request.data, partial=True)
+
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Permisison deactivated successfully."}, status=status.HTTP_200_OK)
 
 class RoleAPIView(APIView):
     """
@@ -551,24 +523,52 @@ class RoleAPIView(APIView):
             instance = get_object_or_404(Role.objects.filter(is_active=True), pk=pk)
 
             # Check permission
-            self.check_object_permissions(request, instance)
+            if not (request.user.is_superuser or request.user.is_admin):
+                return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
 
             serializer = RoleSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            instances = Role.objects.filter(is_active=True)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        
+        elif request.user.is_superuser or request.user.is_admin:
+            if request.user.is_superuser:
+                instances = Role.objects.filter()
+            else:
+                instances = Role.objects.filter(is_active=True)
             
             # Check permission
-            self.check_object_permissions(request, instances)
+            # if not (request.user.is_superuser or request.user.is_admin):
+            #     return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
             serializer = RoleSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+
+            return Response({"success": True, "data": paginated_response.data}, status=status.HTTP_200_OK)
         
             # instances = Role.objects.filter(is_active=True)
             # serializer = RoleSerializer(instances, many=True)
             # return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            try:
+                user = request.user
+                serializer = UserWithRolesSerializer(user)
+                return Response(
+                    {
+                        "success": True,
+                        "data": serializer.data
+                    },
+                    status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                return Response(
+                    {
+                        "success": False,
+                        "error": str(e)
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
     def post(self, request):
         """
@@ -577,15 +577,15 @@ class RoleAPIView(APIView):
         serializer = RoleSerializer(data=request.data)
 
         # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
-        
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if serializer.is_valid():
             serializer.save(created_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
         
         # Save with the authenticated user as the creator
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         """
@@ -594,13 +594,14 @@ class RoleAPIView(APIView):
         instance = get_object_or_404(Role, pk=pk)
         
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = RoleSerializer(instance, data=request.data, partial=False)
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, pk):
         """
@@ -609,13 +610,14 @@ class RoleAPIView(APIView):
         instance = get_object_or_404(Role, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
         
         serializer = RoleSerializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         """
@@ -624,13 +626,14 @@ class RoleAPIView(APIView):
         instance = get_object_or_404(Role, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = RoleSerializer(instance, data=request.data, partial=True)
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Role deactivated successfully."}, status=status.HTTP_200_OK)
 
 class ApplicationAPIView(APIView):
     """
@@ -644,24 +647,27 @@ class ApplicationAPIView(APIView):
         Handle GET requests.
         If `pk` is provided, fetch a single instance; otherwise, fetch all instances.
         """
+        # Check permission
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if pk:
             instance = get_object_or_404(Application.objects.filter(is_active=True), pk=pk)
-            
-            # Check permission
-            self.check_object_permissions(request, instance)
 
-            serializer = ApplicationSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            serializer = ApplicationWithPermissionSerializer(instance)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         else:
-            instances = Application.objects.filter(is_active=True)
-
-            # Check permission
-            self.check_object_permissions(request, instances)
+            if request.user.is_superuser:
+                instances = Application.objects.filter()
+            else:
+                instances = Application.objects.filter(is_active=True)
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
-            serializer = ApplicationSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            serializer = ApplicationWithPermissionSerializer(paginated_queryset, many=True)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+
+            return Response({"success": True, "data": paginated_response.data}, status=status.HTTP_200_OK)
         
     def post(self, request):
         """
@@ -670,15 +676,15 @@ class ApplicationAPIView(APIView):
         serializer = ApplicationSerializer(data=request.data)
 
         # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
-        
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if serializer.is_valid():
             serializer.save(created_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
         
         # Save with the authenticated user as the creator
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         """
@@ -687,13 +693,14 @@ class ApplicationAPIView(APIView):
         instance = get_object_or_404(Application, pk=pk)
         
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = ApplicationSerializer(instance, data=request.data, partial=False)
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, pk):
         """
@@ -702,13 +709,15 @@ class ApplicationAPIView(APIView):
         instance = get_object_or_404(Application, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         
         serializer = ApplicationSerializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save(updated_by=request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         """
@@ -717,13 +726,14 @@ class ApplicationAPIView(APIView):
         instance = get_object_or_404(Application, pk=pk)
         
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
         
         serializer = ApplicationSerializer(instance, data=request.data, partial=True)
         # instance.delete()
         if serializer.is_valid():
             serializer.save(is_active=False)
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Application deactivated successfully."}, status=status.HTTP_200_OK)
 
 # API View for AssignPermissionToUser
 class AssignPermissionToUserAPIView(APIView):
@@ -738,37 +748,37 @@ class AssignPermissionToUserAPIView(APIView):
         serializer = AssignPermissionToUserSerializer(data=request.data)
 
         # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
         
         if serializer.is_valid():
             serializer.save(assigned_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request, pk=None):
         """
         Handle GET requests.
         If `pk` is provided, fetch a single instance; otherwise, fetch all instances.
         """
+        # Check permission
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if pk:
             instance = get_object_or_404(AssignPermissionToUser, pk=pk)
-                        
-            # Check permission
-            self.check_object_permissions(request, instance)
 
             serializer = AssignPermissionToUserSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         else:
             instances = AssignPermissionToUser.objects.all()
-            
-            # Check permission
-            self.check_object_permissions(request, instances)
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
             serializer = AssignPermissionToUserSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+
+            return Response({"success": True, "data": paginated_response.data}, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """
@@ -777,11 +787,12 @@ class AssignPermissionToUserAPIView(APIView):
         instance = get_object_or_404(AssignPermissionToUser, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         instance.delete()
 
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
 
 # API View for AssignRoleToUser
 class AssignRoleToUserAPIView(APIView):
@@ -795,51 +806,52 @@ class AssignRoleToUserAPIView(APIView):
         serializer = AssignRoleToUserSerializer(data=request.data)
 
         # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         
         if serializer.is_valid():
             serializer.save(assigned_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request, pk=None):
         """
         Handle GET requests.
         If `pk` is provided, fetch a single instance; otherwise, fetch all instances.
         """
-        
+        # Check permission
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if pk:
             instance = get_object_or_404(AssignRoleToUser, pk=pk)
 
-            # Check permission
-            self.check_object_permissions(request, instance)
-
             serializer = AssignRoleToUserSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         else:
             instances = AssignRoleToUser.objects.all()
-
-            # Check permission
-            self.check_object_permissions(request, instances)
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
             serializer = AssignRoleToUserSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+
+            return Response({"success": True, "data": paginated_response.data}, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """
         Handle DELETE requests for deleting an instance.
         """
         instance = get_object_or_404(AssignRoleToUser, pk=pk)
-
+        
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         instance.delete()
 
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
 
 # API View for AssignPermissionToRole
 class AssignPermissionToRoleAPIView(APIView):
@@ -854,38 +866,38 @@ class AssignPermissionToRoleAPIView(APIView):
         serializer = AssignPermissionToRoleSerializer(data=request.data)
 
         # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         
         if serializer.is_valid():
             serializer.save(assigned_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request, pk=None):
         """
         Handle GET requests.
         If `pk` is provided, fetch a single instance; otherwise, fetch all instances.
         """
+        # Check permission
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if pk:
             instance = get_object_or_404(AssignPermissionToRole, pk=pk)
 
-            # Check permission
-            self.check_object_permissions(request, instance)
-
             serializer = AssignPermissionToRoleSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         else:
             instances = AssignPermissionToRole.objects.all()
-
-            # Check permission
-            self.check_object_permissions(request, instances)
-
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
             serializer = AssignPermissionToRoleSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+
+            return Response({"success": True, "data": paginated_response.data}, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """
@@ -894,11 +906,34 @@ class AssignPermissionToRoleAPIView(APIView):
         instance = get_object_or_404(AssignPermissionToRole, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         instance.delete()
 
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+    
+# API View for AssignPermissionsToRole
+class AssignPermissionsToRoleAPIView(APIView):
+    """
+    API endpoint to assign mutiple permissions to a role.
+    Accepts POST requests with data corresponding to the AssignPermissionToRole model.
+    """
+
+    permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+    
+    def post(self, request):
+        serializer = AssignPermissionsToRoleSerializer(data=request.data)
+
+        # Check permission
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
+        
+        if serializer.is_valid():
+            serializer.save(assigned_by=request.user)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
 # API View for AssignPermissionToApplication
 class AssignPermissionToApplicationAPIView(APIView):
@@ -913,37 +948,37 @@ class AssignPermissionToApplicationAPIView(APIView):
         serializer = AssignPermissionToApplicationSerializer(data=request.data)
 
         # Check permission
-        if not request.user.is_superuser or not request.user.is_staff:
-            return Response({"error": "Only admin or super admin can create users."}, status=status.HTTP_403_FORBIDDEN)
-        
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if serializer.is_valid():
             serializer.save(assigned_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, pk=None):
         """
         Handle GET requests.
         If `pk` is provided, fetch a single instance; otherwise, fetch all instances.
         """
+        # Check permission
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
         if pk:
             instance = get_object_or_404(AssignPermissionApplication, pk=pk)
-
-            # Check permission
-            self.check_object_permissions(request, instance)
             
             serializer = AssignPermissionToApplicationSerializer(instance)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         else:
             instances = AssignPermissionApplication.objects.all()
-
-            # Check permission
-            self.check_object_permissions(request, instances)
 
             paginator = SizePagination()
             paginated_queryset = paginator.paginate_queryset(instances, request)
             serializer = AssignPermissionToApplicationSerializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            paginated_response = paginator.get_paginated_response(serializer.data)
+
+            return Response({"success": True, "data": paginated_response.data}, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """
@@ -952,9 +987,10 @@ class AssignPermissionToApplicationAPIView(APIView):
         instance = get_object_or_404(AssignPermissionApplication, pk=pk)
 
         # Check permission
-        self.check_object_permissions(request, instance)
+        if not (request.user.is_superuser or request.user.is_admin):
+            return Response({"success": False, "error": "Only admin or super admin can perform this action."}, status=status.HTTP_403_FORBIDDEN)
 
         instance.delete()
 
-        return Response({"message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
 

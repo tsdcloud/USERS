@@ -12,7 +12,7 @@ from rest_framework_simplejwt.views import (
     TokenBlacklistView,
 )
 
-from .views import CustomTokenObtainPairView, UserInfoView
+from .views import CustomTokenObtainPairView, UserInfoView, CustomTokenVerifyView, CustomTokenBlacklistView
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -34,11 +34,12 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     
     path('admin/', admin.site.urls),
-    path('api_gateway/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'), 
-    path('api_gateway/user_info/', UserInfoView.as_view(), name='optain_user_info'), 
-    path('api_gateway/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  
-    path('api_gateway/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
-    path('api_gateway/token/revoke/', TokenBlacklistView.as_view(), name='token_blacklist'),
+    path('gateway/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'), 
+    path('gateway/user_info/', UserInfoView.as_view(), name='optain_user_info'), 
+    path('gateway/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  
+    path('gateway/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
+    path('gateway/logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
 
-    path('api_gateway/api/', include('api_users.urls')),
+    path('gateway/api/', include('api_users.urls')),
 ]
+

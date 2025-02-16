@@ -88,10 +88,24 @@ WSGI_APPLICATION = 'api_gateway_settings.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'berp_users',
+        'USER': 'root',
+        'PASSWORD': '', 
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        }
     }
 }
 
@@ -166,8 +180,8 @@ REST_FRAMEWORK = {
 # Configure Simple jwt
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,  
     'BLACKLIST_AFTER_ROTATION': True,  
     'ALGORITHM': 'HS256',  
@@ -178,13 +192,15 @@ SIMPLE_JWT = {
 
 # Configure SMTP 
 
-EMAIL_HOST = 'smtp.office365.com'
-EMAIL_HOST_USER = 'tsd@bfclimited.com'
-EMAIL_HOST_PASSWORD ='dpws@2023'
+# EMAIL_HOST = 'smtp.office365.com'
+EMAIL_HOST = 'mail74.lwspanel.com'
+EMAIL_HOST_USER = 'no-reply@bfcgroupsa.com'
+EMAIL_HOST_PASSWORD ='gJ3*xY$UpCerV6P'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 300
-DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
+DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
+# DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.office365.com'

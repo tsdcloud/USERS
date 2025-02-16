@@ -86,7 +86,7 @@ class CustomUser(AbstractUser):
     first_name = models.CharField(_("first name"), max_length=100)
     last_name = models.CharField(_("last name"), max_length=100, blank=True)
     phone = models.CharField(_("phone"), max_length=50, blank=True, null=True)
-    is_active = models.BooleanField(_("active"), default=True)
+    is_active = models.BooleanField(_("active"), default=False)
     is_staff = models.BooleanField(_("staff status"), default=False)
     is_admin = models.BooleanField(_("admin status"), default=False)
     is_superuser = models.BooleanField(default=False)
@@ -131,109 +131,14 @@ class CustomUser(AbstractUser):
         """
         return self.username
 
-    def clean(self):
-        """
-        Performs validation on the user fields before saving the instance.
-
-        Validates email format, username format, password security, and ensures fields like first name, last name, and phone are set correctly.
-        """
-        super().clean()
-        if not self.email:
-            raise ValidationError(_("Email cannot be empty"))
-        
-        if '@' not in self.email:
-            raise ValidationError(_("Email must contain the '@' symbol"))
-        
-        if self.pk is None : 
-            CustomUser.objects.filter(email=self.email).exists()
-            raise ValidationError(_("Email is already taken"))
-
-        # if not self.password:
-        #     raise ValidationError(_("Password cannot be empty"))
-        # self.validate_password(self.password)
-
-        if self.pk is None: 
-            if self.username:
-                raise ValidationError(_("Username cannot be empty"))
-        self.validate_username(self.username)
-
-        if not self.first_name:
-            raise ValidationError(_("First name cannot be empty"))
-        self.validate_first_name(self.first_name)
-
-        if self.last_name:
-            self.last_name.strip()
-            self.validate_last_name(self.last_name)
-
-        if self.phone:
-            self.validate_phone(self.phone)
-
-    def validate_username(self, username):
-        """
-        Validates that the username contains only letters, numbers, dots (.), and underscores (_), and is unique.
-
-        Args:
-            username (str): The username to validate.
-
-        Raises:
-            ValidationError: If the username contains invalid characters or is not unique.
-        """
-        if not re.match(r'^[A-Za-z0-9._]+$', username):
-            raise ValidationError(_("Username can only contain letters, numbers, dots (.) and underscores (_)"))
-        if self.pk is None:
-            if CustomUser.objects.filter(username=username).exists():
-                raise ValidationError(_("Username is already taken"))
-
-    def validate_first_name(self, first_name):
-        """
-        Validates that the first name contains only letters.
-
-        Args:
-            first_name (str): The first name to validate.
-
-        Raises:
-            ValidationError: If the first name contains invalid characters.
-        """
-        if not re.match(r"^[A-Za-zà-ÿÀ-Ÿ]+$", first_name):
-            raise ValidationError(_("First name can only contain letters"))
-    
-    def validate_last_name(self, last_name):
-        """
-        Validates that the last name contains only letters, spaces, apostrophes, and hyphens, and has no leading/trailing spaces.
-
-        Args:
-            last_name (str): The last name to validate.
-
-        Raises:
-            ValidationError: If the last name contains invalid characters or leading/trailing spaces.
-        """
-        if not re.match(r"^[A-Za-zà-ÿÀ-Ÿ' -]+$", last_name):
-            raise ValidationError(_("Last name can only contain letters, spaces, apostrophes, and hyphens"))
-
-    def validate_phone(self, phone):
-        """
-        Validates that the phone number contains only digits and hyphens and is at least 9 characters long.
-
-        Args:
-            phone (str): The phone number to validate.
-
-        Raises:
-            ValidationError: If the phone number is too short or contains invalid characters.
-        """
-        if len(phone) < 9:
-            raise ValidationError(_("Phone number must be at least 9 characters long"))
-        if not re.match(r'^[0-9\-]+$', phone):
-            raise ValidationError(_("Phone number can only contain digits and hyphens"))
-
     def save(self, *args, **kwargs):
         """
-        Saves the user instance after validating and hashing the password.
-
-        Calls full_clean() to validate the fields, and hashes the password if set.
+        Saves the user instance
         """
-        self.full_clean()  # Validate before saving
-
         super().save(*args, **kwargs)
+    
+    class Meta:
+        ordering = ['-date_joined']
 
 
 # --- Role Model ---
@@ -252,17 +157,23 @@ class Role(models.Model):
         date_updated (DateTimeField): Timestamp of the last update to the role.
         created_by (ForeignKey): References the user who created the role.
         updated_by (ForeignKey): References the user who last updated the role.
+        display_name
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role_name = models.CharField(
         max_length=100,
         unique=True,
-        help_text="Unique name of the role, allowing only alphanumeric characters, dashes, and underscores."
+        help_text="Unique name of the role, allowing only alphanumeric characters, dashes, and underscores.",
+        default="role_name"
+    )
+    display_name = models.CharField(
+        max_length=100,
+        null=True
     )
     description = models.TextField(
         max_length=255,
-        null=True,
         blank=True,
+        null=True,
         help_text="Detailed description of the role's responsibilities and privileges."
     )
     is_active = models.BooleanField(
@@ -300,7 +211,7 @@ class Role(models.Model):
     class Meta:
         verbose_name = "Role"
         verbose_name_plural = "Roles"
-        ordering = ['date_created']
+        ordering = ['-date_created']
 
 
 
@@ -315,6 +226,7 @@ class Permission(models.Model):
         id (AutoField): Primary key, a unique integer identifier for each permission.
         permission_name (CharField): A unique, human-readable name for the permission.
         is_active (BooleanField): Indicates whether the permission is active (True) or inactive (False).
+        display_name
         description (TextField): A brief description of the permission's purpose and scope.
         date_created (DateTimeField): Timestamp when the permission was created.
         date_updated (DateTimeField): Timestamp when the permission was last updated.
@@ -325,7 +237,12 @@ class Permission(models.Model):
     permission_name = models.CharField(
         max_length=100,
         unique=True,
-        help_text="Unique name for the permission, allowing only alphanumeric characters, dashes, and underscores."
+        help_text="Unique name for the permission, allowing only alphanumeric characters, dashes, and underscores.",
+        default="perm_name"
+    )
+    display_name = models.CharField(
+        max_length=100,
+        null=True
     )
     is_active = models.BooleanField(
         default=True,
@@ -333,7 +250,9 @@ class Permission(models.Model):
     )
     description = models.TextField(
         max_length=255,
-        help_text="A detailed description of the permission's purpose and scope."
+        help_text="A detailed description of the permission's purpose and scope.",
+        blank=True,
+        null=True
     )
     date_created = models.DateTimeField(
         auto_now_add=True,
@@ -366,7 +285,7 @@ class Permission(models.Model):
     class Meta:
         verbose_name = "Permission"
         verbose_name_plural = "Permissions"
-        ordering = ['date_created']
+        ordering = ['-date_created']
 
 
 # --- Application Model ---
@@ -434,7 +353,7 @@ class Application(models.Model):
         help_text="The user who last updated this application (nullable)."
     )
     image = models.CharField(
-        max_length=100,
+        max_length=500,
         blank=True,
         null=True,
         help_text="Optional field for storing an image reference for the application."
@@ -446,7 +365,7 @@ class Application(models.Model):
     class Meta:
         verbose_name = "Application"
         verbose_name_plural = "Applications"
-        ordering = ['date_created']
+        ordering = ['-date_created']
 
 # --- Assign Permission to Users ---
 class AssignPermissionToUser(models.Model):

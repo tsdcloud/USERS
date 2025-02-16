@@ -13,8 +13,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         
         # Add custom user information to the response
-        assigned_permissions = AssignPermissionToUser.objects.filter(user_id=user).select_related('permission_id')
-        assigned_roles = AssignRoleToUser.objects.filter(user_id=user).select_related('role_id')
+        assigned_permissions = AssignPermissionToUser.objects.filter(user_id=user, permission_id__is_active=True).select_related('permission_id')
+        assigned_roles = AssignRoleToUser.objects.filter(user_id=user, role_id__is_active=True).select_related('role_id')
 
         # Serialize the permissions using a custom serializer
         permissions = [
@@ -22,6 +22,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 "id": str(perm.permission_id.id),
                 "permission_name": perm.permission_id.permission_name,
                 "description": perm.permission_id.description,
+                "is_active": perm.permission_id.is_active
             }
             for perm in assigned_permissions
         ]
@@ -34,13 +35,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         for role_assignment in assigned_roles:
             role = role_assignment.role_id
             # Get permissions assigned to this role
-            role_permissions = AssignPermissionToRole.objects.filter(role_id=role).select_related('permission_id')
+            role_permissions = AssignPermissionToRole.objects.filter(role_id=role, permission_id__is_active=True).select_related('permission_id')
 
             permissions = [
                 {
                     "id": str(perm.permission_id.id),
                     "permission_name": perm.permission_id.permission_name,
-                    "description": perm.permission_id.description
+                    "description": perm.permission_id.description,
+                    "is_active": perm.permission_id.is_active
                 }
                 for perm in role_permissions
             ]
@@ -48,6 +50,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             roles.append({
                 "id": str(role.id),
                 "role_name": role.role_name,
+                "is_active": role.is_active,
                 "permissions": permissions
             })
 
