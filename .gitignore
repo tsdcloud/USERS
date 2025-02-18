@@ -19,3 +19,7 @@ media/
 # IDE configuration
 .idea/
 .vscode/
+
+
+# Remove settings file
+api_gateway_settings/settings.py
