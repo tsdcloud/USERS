@@ -17,6 +17,8 @@ from .utils import validate_password, generate_random_chain
 from django.core.mail import send_mail
 from django.db import transaction
 
+BERP_FRONT_END_URL = "https://berp.bfcgroupsa.com"
+
 
 class UserSerializer(serializers.ModelSerializer):
     """
@@ -141,7 +143,7 @@ class UserSerializer(serializers.ModelSerializer):
             user.set_password(generate_random_chain(12))
 
         # Construct the reset URL
-        reset_url = f"http://localhost:5173/confirmPassword/?token={reset_token}"
+        reset_url = f"{BERP_FRONT_END_URL}/confirmPassword/?token={reset_token}"
 
         # Send email with the reset link
         email = validated_data['email']

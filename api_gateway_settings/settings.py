@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-+n%=@r9e!(-f3__+(j@zf$!065*#5p-i$27+kn9cx2s)5a9^!s
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# ALLOWED_HOSTS = ["192.168.1.123"]
+ALLOWED_HOSTS = ["user.bfcgroupsa.com"]
 
 
 # Application definition
@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'corsheaders',
-    
+
     'api_users',
 ]
 
@@ -98,14 +98,11 @@ WSGI_APPLICATION = 'api_gateway_settings.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'berp_users',
-        'USER': 'root',
-        'PASSWORD': '', 
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        }
+        'NAME': 'users_datastore',
+        'USER': 'users',
+        'PASSWORD': 'x5VC$4t+',
+        'HOST': 'mysql',
+        'PORT': '3306'
     }
 }
 
@@ -160,6 +157,9 @@ AUTH_USER_MODEL = 'api_users.CustomUser'
 # CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "https://berp.bfcgroupsa.com",
+    "https://incident.bfcgroupsa.com",
+    "https://entity.bfcgroupsa.com"
 ]
 
 # Configure rest_framework
