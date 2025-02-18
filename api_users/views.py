@@ -40,6 +40,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import permissions
 from rest_framework.permissions import BasePermission
 
+BERP_FRONT_END_URL = "https://berp.bfcgroupsa.com"
+
 
 class SizePagination(PageNumberPagination):
     page_size = 100  # default page size
@@ -277,7 +279,7 @@ class EmailToResetPasswordAPIView(APIView):
             return Response({"success": False, "error": "user with this email was not found or invalid email"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Construct the reset URL 
-        reset_url = f"{'http://localhost:5173/confirmPassword/'}?token={reset_token}"
+        reset_url = f"{BERP_FRONT_END_URL}/confirmPassword/?token={reset_token}"
         # reset_url = f"{'http://127.0.0.1:8000/api_gateway/api/reset_password/'}?token={reset_token}"
 
         # Send email with the reset link

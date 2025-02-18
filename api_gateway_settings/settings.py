@@ -160,6 +160,9 @@ AUTH_USER_MODEL = 'api_users.CustomUser'
 # CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "https://berp.bfcgroupsa.com",
+    "https://incident.bfcgroupsa.com",
+    "https://entity.bfcgroupsa.com"
 ]
 
 # Configure rest_framework
