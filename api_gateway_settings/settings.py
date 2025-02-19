@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 
+from corsheaders.defaults import default_headers
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -200,13 +202,25 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 300
 DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
-# DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
 
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.office365.com'
-# EMAIL_PORT = 587 
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'sngnetchedjeu@bfclimited.com' 
-# # EMAIL_HOST_USER = 'ngnetchedjeusteevemarley@gmail.com' 
-# EMAIL_HOST_PASSWORD = 'Lamachette_&'
-# DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
+
+CORS_ALLOW_HEADERS = [
+    # Default: from corsheaders.defaults import default_headers
+    # Cannot import in settings because in causes django.setup() to fail in scripts
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    # End default
+
+    "accept-language",
+    "x-payment-provider",
+    "x-reference-id",
+    "x-notification-url",
+    "x-target-environment"
+]

@@ -19,3 +19,5 @@ media/
 # IDE configuration
 .idea/
 .vscode/
+
+api_gateway_settings/settings.py
