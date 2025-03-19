@@ -57,7 +57,7 @@ RUN pip install django-parler==2.3
 RUN pip install django-cors-headers==4.3.1
 RUN pip install icmplib==3.0.3
 RUN pip install drf-yasg
-
+RUN pip install sentry-sdk
 # Deactivate the default .conf file
 RUN unlink /etc/apache2/sites-enabled/000-default.conf
 
