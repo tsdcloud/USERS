@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-
+from corsheaders.defaults import default_headers
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,9 +24,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-+n%=@r9e!(-f3__+(j@zf$!065*#5p-i$27+kn9cx2s)5a9^!s'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["user.bfcgroupsa.com"]
+
+ADMINS = [('steeve', 'sngnetchedjeu@bfclimited.com'), ('siaka', 'ysiaka@bfclimited.com')]
 
 # Application definition
 
@@ -87,13 +89,6 @@ WSGI_APPLICATION = 'api_gateway_settings.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -141,7 +136,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = 'https://static.ikwen.com/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -154,13 +149,10 @@ AUTH_USER_MODEL = 'api_users.CustomUser'
 
 # Allow cors 
 
-# CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "https://berp.bfcgroupsa.com",
-    "https://incident.bfcgroupsa.com",
-    "https://entity.bfcgroupsa.com"
-]
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = ["https://berp.bfcgroupsa.com", "https://incident.bfcgroupsa.com", "https://entity.bfcgroupsa.com"]
+
 
 # Configure rest_framework
 
@@ -180,8 +172,8 @@ REST_FRAMEWORK = {
 # Configure Simple jwt
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,  
     'BLACKLIST_AFTER_ROTATION': True,  
     'ALGORITHM': 'HS256',  
@@ -192,21 +184,36 @@ SIMPLE_JWT = {
 
 # Configure SMTP 
 
-# EMAIL_HOST = 'smtp.office365.com'
-EMAIL_HOST = 'mail74.lwspanel.com'
-EMAIL_HOST_USER = 'no-reply@bfcgroupsa.com'
-EMAIL_HOST_PASSWORD ='gJ3*xY$UpCerV6P'
+#EMAIL_HOST = 'smtp.office365.com'
+#EMAIL_HOST_USER = 'tsd@bfclimited.com'
+#EMAIL_HOST_PASSWORD ='dpws@2023'
+#EMAIL_PORT = 587
+#EMAIL_USE_TLS = True
+#EMAIL_TIMEOUT = 300
+EMAIL_HOST = 'mail74.lwspanel.com' #'smtp.office365.com'
+EMAIL_HOST_USER = 'no-reply@bfcgroupsa.com' #'tsd@bfclimited.com'
+EMAIL_HOST_PASSWORD = 'gJ3*xY$UpCerV6P'  #'dpws@2025'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 300
-DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
-# DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
+DEFAULT_FROM_EMAIL = 'no-reply@bfcgroupsa.com'
 
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.office365.com'
-# EMAIL_PORT = 587 
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'sngnetchedjeu@bfclimited.com' 
-# # EMAIL_HOST_USER = 'ngnetchedjeusteevemarley@gmail.com' 
-# EMAIL_HOST_PASSWORD = 'Lamachette_&'
-# DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
+
+CORS_ALLOW_HEADERS = [
+    # Default: from corsheaders.defaults import default_headers
+    # Cannot import in settings because in causes django.setup() to fail in scripts
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "accept-language",
+    "x-payment-provider",
+    "x-reference-id",
+    "x-notification-url",
+    "x-target-environment"
+]
