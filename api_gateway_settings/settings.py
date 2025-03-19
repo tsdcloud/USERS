@@ -28,7 +28,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["user.bfcgroupsa.com"]
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -98,6 +97,7 @@ WSGI_APPLICATION = 'api_gateway_settings.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
+
         'NAME': 'users_datastore',
         'USER': 'users',
         'PASSWORD': 'x5VC$4t+',
