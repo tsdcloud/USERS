@@ -20,6 +20,9 @@ media/
 .idea/
 .vscode/
 
+<<<<<<< HEAD
+=======
 
 # Remove settings file
+>>>>>>> main
 api_gateway_settings/settings.py
