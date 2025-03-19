@@ -995,4 +995,5 @@ class AssignPermissionToApplicationAPIView(APIView):
         instance.delete()
 
         return Response({"success": True, "message": "Instance deleted successfully."}, status=status.HTTP_200_OK)
+    
 
