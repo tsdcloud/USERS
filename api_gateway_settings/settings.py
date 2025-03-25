@@ -12,7 +12,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-from corsheaders.defaults import default_headers
+import sentry_sdk
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,11 +25,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-+n%=@r9e!(-f3__+(j@zf$!065*#5p-i$27+kn9cx2s)5a9^!s'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ["user.bfcgroupsa.com"]
+# ALLOWED_HOSTS = ["user.bfcgroupsa.com"]
 
-ADMINS = [('steeve', 'sngnetchedjeu@bfclimited.com'), ('siaka', 'ysiaka@bfclimited.com')]
+sentry_sdk.init(
+    dsn="https://34e7e6874ccadae9e632b91a85fcc647@o4508484136599552.ingest.de.sentry.io/4508958695686224",
+    send_default_pii=True,
+)
 
 # Application definition
 
@@ -89,15 +93,27 @@ WSGI_APPLICATION = 'api_gateway_settings.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'berp_users',
+        'USER': 'root',
+        'PASSWORD': '', 
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
 
-        'NAME': 'users_datastore',
-        'USER': 'users',
-        'PASSWORD': 'x5VC$4t+',
-        'HOST': 'mysql',
-        'PORT': '3306'
+        # 'NAME': 'users_datastore',
+        # 'USER': 'users',
+        # 'PASSWORD': 'x5VC$4t+',
+        # 'HOST': 'mysql',
+        # 'PORT': '3306'
     }
 }
 
@@ -136,7 +152,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'https://static.ikwen.com/'
+STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -149,10 +165,13 @@ AUTH_USER_MODEL = 'api_users.CustomUser'
 
 # Allow cors 
 
-
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = ["https://berp.bfcgroupsa.com", "https://incident.bfcgroupsa.com", "https://entity.bfcgroupsa.com"]
-
+# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://berp.bfcgroupsa.com",
+    "https://incident.bfcgroupsa.com",
+    "https://entity.bfcgroupsa.com"
+]
 
 # Configure rest_framework
 
@@ -172,8 +191,8 @@ REST_FRAMEWORK = {
 # Configure Simple jwt
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,  
     'BLACKLIST_AFTER_ROTATION': True,  
     'ALGORITHM': 'HS256',  
@@ -184,36 +203,21 @@ SIMPLE_JWT = {
 
 # Configure SMTP 
 
-#EMAIL_HOST = 'smtp.office365.com'
-#EMAIL_HOST_USER = 'tsd@bfclimited.com'
-#EMAIL_HOST_PASSWORD ='dpws@2023'
-#EMAIL_PORT = 587
-#EMAIL_USE_TLS = True
-#EMAIL_TIMEOUT = 300
-EMAIL_HOST = 'mail74.lwspanel.com' #'smtp.office365.com'
-EMAIL_HOST_USER = 'no-reply@bfcgroupsa.com' #'tsd@bfclimited.com'
-EMAIL_HOST_PASSWORD = 'gJ3*xY$UpCerV6P'  #'dpws@2025'
+# EMAIL_HOST = 'smtp.office365.com'
+EMAIL_HOST = 'mail74.lwspanel.com'
+EMAIL_HOST_USER = 'no-reply@bfcgroupsa.com'
+EMAIL_HOST_PASSWORD ='gJ3*xY$UpCerV6P'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 300
-DEFAULT_FROM_EMAIL = 'no-reply@bfcgroupsa.com'
+DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
+# DEFAULT_FROM_EMAIL = 'tsd@bfclimited.com'
 
-
-CORS_ALLOW_HEADERS = [
-    # Default: from corsheaders.defaults import default_headers
-    # Cannot import in settings because in causes django.setup() to fail in scripts
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-    "accept-language",
-    "x-payment-provider",
-    "x-reference-id",
-    "x-notification-url",
-    "x-target-environment"
-]
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.office365.com'
+# EMAIL_PORT = 587 
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'sngnetchedjeu@bfclimited.com' 
+# # EMAIL_HOST_USER = 'ngnetchedjeusteevemarley@gmail.com' 
+# EMAIL_HOST_PASSWORD = 'Lamachette_&'
+# DEFAULT_FROM_EMAIL = 'sngnetchedjeu@bfclimited.com'
