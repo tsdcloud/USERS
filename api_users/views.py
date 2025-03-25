@@ -282,19 +282,31 @@ class EmailToResetPasswordAPIView(APIView):
         reset_url = f"{BERP_FRONT_END_URL}/confirmPassword/?token={reset_token}"
         # reset_url = f"{'http://127.0.0.1:8000/api_gateway/api/reset_password/'}?token={reset_token}"
 
-        # Send email with the reset link
-        send_mail(
-            "Set Your Password",
-            f"Hi {user.first_name},\nPlease click the link below to reset your password:\n{reset_url}",
-            "no-reply@bfcgroupsa.com",
-            [email],
-            fail_silently=False,
-            html_message=f"""
-                <p>Hi {user.first_name},</p>
-                <p>Please click the link below to reset your password:</p>
-                <a href="{reset_url}">Set Your Password</a>
-            """
-        )
+        try:
+            # Send email with the reset link
+            send_mail(
+                "Set Your Password",
+                f"Hi {user.first_name},\nPlease click the link below to reset your password:\n{reset_url}",
+                "no-reply@bfcgroupsa.com",
+                [email],
+                fail_silently=False,
+                html_message=f"""
+                    <p>Hi {user.first_name},</p>
+                    <p>Please click the link below to reset your password:</p>
+                    <a href="{reset_url}">Set Your Password</a>
+                """
+            )
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": "Failed to send email. Please try again.",
+                "detail": str(e) 
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+            # raise serializers.ValidationError({
+            #     "email_error": _("Failed to send email. Please try again."),
+            #     "detail": str(e) 
+            # })
 
         user.reset_token = reset_token
         user.reset_token_expire = token_expiry

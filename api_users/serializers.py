@@ -162,7 +162,10 @@ class UserSerializer(serializers.ModelSerializer):
                 """
             )
         except Exception as e:
-            raise serializers.ValidationError({"email_error": _("Failed to send email. Please try again.")})
+            raise serializers.ValidationError({
+                "email_error": _("Failed to send email. Please try again."),
+                "detail": str(e) 
+            })
         
         user.save()
         return user
