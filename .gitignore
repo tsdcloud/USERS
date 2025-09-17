@@ -4,7 +4,11 @@ venv/
 
 # Compiled files Python
 *.pyc
+*.pyo
+*.pyd
+# Fichiers compilés Python
 __pycache__/
+*.py[cod]
 
 # Db files SQLite
 db.sqlite3
@@ -19,10 +23,7 @@ media/
 # IDE configuration
 .idea/
 .vscode/
-
-<<<<<<< HEAD
-=======
-
-# Remove settings file
->>>>>>> main
 api_gateway_settings/settings.py
+
+# Dossier temporaire
+/tmp/
