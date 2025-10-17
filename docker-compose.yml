@@ -1,0 +1,32 @@
+version: '3.8'
+
+networks:
+  web:
+    external: true
+  traefik_internal:
+    external: true
+
+services:
+  users:
+    image: users_images:latest
+    container_name: traefik-users-1
+    restart: unless-stopped
+    volumes:
+      - /home/yvan/DockerRun/USERS/apache2:/var/log/apache2
+      - /home/yvan/DockerRun/USERS/apache_docker.conf:/etc/apache2/sites-available/users.conf:ro
+      - /home/yvan/DockerRun/USERS/app_logs:/var/log/users
+    environment:
+      - DEBUG=false
+      - ALLOWED_HOSTS=user.bfcgroupsa.com,localhost,127.0.0.1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.users.rule=Host(`user.bfcgroupsa.com`)"
+      - "traefik.http.routers.users.entrypoints=websecure"
+      - "traefik.http.routers.users.tls=true"
+      - "traefik.http.routers.users.tls.certresolver=lets-encrypt"
+      - "traefik.http.services.users.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.users-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+    networks:
+      - web
+      - traefik_internal
