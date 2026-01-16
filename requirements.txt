@@ -13,4 +13,4 @@ PyYAML==6.0.2
 sqlparse==0.5.2
 tzdata==2024.2
 uritemplate==4.1.1
-sentry-sdksentry-sdk==2.38.0
+sentry-sdk==2.38.0
