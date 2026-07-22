@@ -11,6 +11,8 @@ services:
     image: users_images:latest
     container_name: traefik-users-1
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:4002:80"
     volumes:
       - /home/yvan/DockerRun/USERS/apache2:/var/log/apache2
       - /home/yvan/DockerRun/USERS/apache_docker.conf:/etc/apache2/sites-available/users.conf:ro
